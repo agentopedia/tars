@@ -62,3 +62,12 @@ After running, check:
 ```bash
 python -m unittest discover -s tests
 ```
+
+## Colab notebook
+
+A ready-to-run Colab notebook for validating repository functionality is available at:
+
+- `notebooks/tars_repo_functionality_test.ipynb`
+
+It includes install/setup, unit tests, an offline mocked end-to-end run, and an optional live Gemini run.
+
