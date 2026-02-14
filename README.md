@@ -1,30 +1,26 @@
 # TARS Conversation Improvement Analyzer
 
-A Python codebase for analyzing transcripts between a human and an LLM agent, using **Gemini** to score each conversation, then generating a report on whether the agent is improving over time.
+A Python codebase for analyzing transcript sequences between a human and an LLM agent, using **Gemini** to evaluate whether the **same agent is improving over time** from conversation 1 → 2 → 3, etc.
 
 ## What this does
 
-- Loads conversation history from JSONL.
-- Sends each conversation to Gemini for structured evaluation.
-- Scores quality dimensions:
-  - helpfulness
-  - correctness
-  - proactivity
-  - user satisfaction
-  - confidence
+- Loads a time-ordered conversation history from JSONL.
+- Sends the **entire ordered sequence** to Gemini for longitudinal evaluation.
+- Asks Gemini to rank each conversation by overall agent quality and score change vs. previous conversation.
 - Produces:
   - `report.json` (machine-readable)
   - `report.md` (human-readable)
-- Computes trend label (`improving`, `flat`, `declining`) from composite score progression.
+- Reports trajectory (`improving`, `flat`, `declining`, `mixed`) and first-to-last quality delta.
 
 ## Project structure
 
 - `src/tars_analyzer/models.py` — data models.
-- `src/tars_analyzer/gemini_client.py` — Gemini API integration.
-- `src/tars_analyzer/analyzer.py` — loading, scoring, trend logic, report generation.
+- `src/tars_analyzer/gemini_client.py` — Gemini API integration and progression evaluation.
+- `src/tars_analyzer/analyzer.py` — loading, trend logic, and report generation.
 - `src/tars_analyzer/cli.py` — CLI entrypoint.
-- `tests/test_analyzer.py` — unit test with mocked Gemini evaluator.
+- `tests/test_analyzer.py` — unit test with mocked progression evaluator.
 - `examples/conversations.jsonl` — sample input.
+- `notebooks/tars_repo_functionality_test.ipynb` — Colab-friendly test flow.
 
 ## Input format (JSONL)
 
@@ -70,4 +66,3 @@ A ready-to-run Colab notebook for validating repository functionality is availab
 - `notebooks/tars_repo_functionality_test.ipynb`
 
 It includes install/setup, unit tests, an offline mocked end-to-end run, and an optional live Gemini run.
-
