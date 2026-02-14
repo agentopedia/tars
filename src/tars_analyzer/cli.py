@@ -7,7 +7,7 @@ from .analyzer import analyze_conversations
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Analyze ordered LLM-human conversations with Gemini to assess whether the same agent is self-improving over time."
+        description="Analyze LLM-human conversations with Gemini and detect improvement trends."
     )
     parser.add_argument("input", help="Path to JSONL conversations file")
     parser.add_argument("--out", default="output", help="Directory for report files")
@@ -16,10 +16,8 @@ def main() -> None:
 
     report = analyze_conversations(args.input, args.out, model=args.model)
     print(
-        "Done. "
-        f"Trajectory={report['trajectory']['label']} "
-        f"first_to_last_delta={report['trend_delta_first_to_last']} "
-        f"avg_quality={report['average_overall_agent_quality']}"
+        f"Done. Trend={report['trend_label']} delta={report['trend_delta']} "
+        f"avg={report['average_score']}"
     )
 
 

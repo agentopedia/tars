@@ -66,12 +66,3 @@ A ready-to-run Colab notebook for validating repository functionality is availab
 - `notebooks/tars_repo_functionality_test.ipynb`
 
 It includes install/setup, unit tests, an offline mocked end-to-end run, and an optional live Gemini run.
-
-## Real use-case dataset + Colab
-
-For a realistic, time-ordered support dataset and a Colab workflow that tests end-to-end self-improvement analysis:
-
-- Dataset: `examples/customer_support_progression.jsonl`
-- Notebook: `notebooks/tars_real_usecase_colab.ipynb`
-
-The notebook includes both an offline deterministic validation path and an optional live Gemini run.

@@ -29,23 +29,6 @@ class GeminiEvaluation:
 
 
 @dataclass
-class ConversationProgress:
-    conversation_id: str
-    rank: int
-    overall_agent_quality: float
-    improvement_vs_previous: float
-    notes: str
-
-
-@dataclass
-class ProgressionEvaluation:
-    overall_summary: str
-    trajectory_label: str
-    trajectory_confidence: float
-    per_conversation: list[ConversationProgress]
-
-
-@dataclass
 class ConversationAnalysis:
     conversation_id: str
     timestamp: datetime
