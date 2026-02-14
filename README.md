@@ -1,74 +1,68 @@
-# 📄 TARS Loop: Autonomous Research Review & Iteration
+# TARS Conversation Improvement Analyzer
 
-## 🚀 Vision
+A Python codebase for analyzing transcript sequences between a human and an LLM agent, using **Gemini** to evaluate whether the **same agent is improving over time** from conversation 1 → 2 → 3, etc.
 
-Accelerate scientific progress by building an AI-powered research improvement loop where agents critique, authors iterate, and every change is tracked with context.  
-Replace static peer review with a dynamic, transparent, and collaborative review ecosystem powered by autonomous agents.
+## What this does
 
----
+- Loads a time-ordered conversation history from JSONL.
+- Sends the **entire ordered sequence** to Gemini for longitudinal evaluation.
+- Asks Gemini to rank each conversation by overall agent quality and score change vs. previous conversation.
+- Produces:
+  - `report.json` (machine-readable)
+  - `report.md` (human-readable)
+- Reports trajectory (`improving`, `flat`, `declining`, `mixed`) and first-to-last quality delta.
 
-## 🧩 The TARS Loop Workflow
+## Project structure
 
-### 📄 Submit Draft  
-Upload a paper (PDF or LaTeX) to initiate the TARS critique cycle.
+- `src/tars_analyzer/models.py` — data models.
+- `src/tars_analyzer/gemini_client.py` — Gemini API integration and progression evaluation.
+- `src/tars_analyzer/analyzer.py` — loading, trend logic, and report generation.
+- `src/tars_analyzer/cli.py` — CLI entrypoint.
+- `tests/test_analyzer.py` — unit test with mocked progression evaluator.
+- `examples/conversations.jsonl` — sample input.
+- `notebooks/tars_repo_functionality_test.ipynb` — Colab-friendly test flow.
 
-### 🤖 TARS Critique  
-Autonomous agents with distinct reviewer personas (theorist, empiricist, philosopher, skeptic...) comment inline and in threaded discussions.
+## Input format (JSONL)
 
-### 🛠️ Author Iteration  
-Authors respond, revise, or reject feedback. Agent suggestions can be semi-automated or integrated with an AI co-author.
+Each line is one conversation object:
 
-### 📈 Changelog Creation  
-Every change is auto-logged, tagged to reviewer feedback, and versioned in a visual timeline.
+```json
+{
+  "conversation_id": "session-001",
+  "timestamp": "2026-01-05T10:00:00Z",
+  "turns": [
+    {"role": "human", "content": "..."},
+    {"role": "agent", "content": "..."}
+  ],
+  "metadata": {"optional": "fields"}
+}
+```
 
-### 🧪 Final Peer Review  
-Human or agentic peer reviewers conduct a final review, readying the paper for journal submission, arXiv upload, or community publishing.
+## Quickstart
 
----
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -e .
+export GEMINI_API_KEY="your_api_key"
+tars-analyze examples/conversations.jsonl --out output --model gemini-2.0-flash
+```
 
-## 🧠 Why This Matters
+After running, check:
 
-| Problem | TARS Loop Solves |
-|--------|------------------|
-| Slow, opaque peer review | Transparent, interactive feedback in hours, not months |
-| Lack of constructive critique | Multi-agent diversity ensures multidimensional feedback |
-| No audit trail for evolution | Full changelog links critique → revision → rationale |
-| AI authorship lacks accountability | Traceable agent interventions and authorship attribution |
+- `output/report.json`
+- `output/report.md`
 
----
+## Test
 
-## 🔧 Built With
+```bash
+python -m unittest discover -s tests
+```
 
-- **LLM-based reviewers**: Fine-tuned or prompt-engineered critique agents (e.g. Formalist, Red Team, Historian)  
-- **Version-aware document platform**: Git-like version control for research papers  
-- **Citation graph integration**: Agents pull related work, detect missing references  
-- **Export-ready formats**: arXiv/Overleaf/LaTeX PDF support  
+## Colab notebook
 
----
+A ready-to-run Colab notebook for validating repository functionality is available at:
 
-## 🎯 Target Users
+- `notebooks/tars_repo_functionality_test.ipynb`
 
-- Independent researchers, PhD students, and lab groups  
-- Open science communities (arXiv, bioRxiv, OpenReview)  
-- Journals seeking AI-augmented review layers  
-- Tool builders in the academic knowledge graph & GenAI space  
-
----
-
-## 🌐 Differentiation
-
-- 🧠 **Agentic Peer Review**: More than summarization—each agent has a viewpoint and contributes argumentation.  
-- 📊 **Explainable Revisions**: Every edit has a *why*, not just a *what*.  
-- 🔁 **Continuous Publishing**: Move from one-shot publication to a living document with evolving quality.  
-
----
-
-## 💡 Strategic Direction
-
-- Launch as an Overleaf plugin or arXiv-sidecar tool  
-- Open protocol for agent-based research improvement  
-- Integrate with GitHub for papers-as-code (e.g. Manubot, Jupyter)  
-
----
-
-> *“The future of science isn’t just faster—it’s more agentic, auditable, and alive.”*
+It includes install/setup, unit tests, an offline mocked end-to-end run, and an optional live Gemini run.
