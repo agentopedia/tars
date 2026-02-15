@@ -77,7 +77,7 @@ class AnalyzerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             input_path = Path(td) / "conversations.jsonl"
             out_dir = Path(td) / "out"
-            input_path.write_text(raw) 
+            input_path.write_text(raw)
 
             original = analyzer.GeminiEvaluator
             analyzer.GeminiEvaluator = FakeEvaluator
