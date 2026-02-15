@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tars-conversation-analyzer"
+version = "0.1.0"
+description = "Analyze LLM-human conversations with Gemini and report improvement trends"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "google-genai>=0.5.0",
+]
+
+[project.scripts]
+tars-analyze = "tars_analyzer.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
