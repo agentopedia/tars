@@ -9,28 +9,36 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from tars_analyzer import analyzer
-from tars_analyzer.models import GeminiEvaluation
+from tars_analyzer.models import ConversationProgress, ProgressionEvaluation
 
 
 class FakeEvaluator:
     def __init__(self, model: str = "gemini-2.0-flash") -> None:
         self.model = model
 
-    def evaluate(self, conversation):
-        idx = int(conversation.conversation_id.split("-")[-1])
-        base = 5 + idx
-        return GeminiEvaluation(
-            helpfulness=base,
-            correctness=base,
-            proactivity=base,
-            user_satisfaction=base,
-            confidence=8.0,
-            notes="synthetic",
+    def evaluate_progression(self, conversations):
+        ordered = sorted(conversations, key=lambda c: c.timestamp)
+        items = []
+        for idx, convo in enumerate(ordered):
+            items.append(
+                ConversationProgress(
+                    conversation_id=convo.conversation_id,
+                    rank=idx + 1,
+                    overall_agent_quality=6.0 + idx,
+                    improvement_vs_previous=0.0 if idx == 0 else 1.0,
+                    notes="synthetic progression",
+                )
+            )
+        return ProgressionEvaluation(
+            overall_summary="Agent gets better in each conversation.",
+            trajectory_label="improving",
+            trajectory_confidence=9.0,
+            per_conversation=items,
         )
 
 
 class AnalyzerTests(unittest.TestCase):
-    def test_trend_improving(self):
+    def test_progression_improving(self):
         raw = "\n".join(
             [
                 json.dumps(
@@ -39,7 +47,7 @@ class AnalyzerTests(unittest.TestCase):
                         "timestamp": "2025-01-01T00:00:00Z",
                         "turns": [
                             {"role": "human", "content": "help"},
-                            {"role": "agent", "content": "sure"},
+                            {"role": "agent", "content": "basic reply"},
                         ],
                     }
                 ),
@@ -53,13 +61,23 @@ class AnalyzerTests(unittest.TestCase):
                         ],
                     }
                 ),
+                json.dumps(
+                    {
+                        "conversation_id": "conv-2",
+                        "timestamp": "2025-01-03T00:00:00Z",
+                        "turns": [
+                            {"role": "human", "content": "help"},
+                            {"role": "agent", "content": "best response"},
+                        ],
+                    }
+                ),
             ]
         )
 
         with tempfile.TemporaryDirectory() as td:
             input_path = Path(td) / "conversations.jsonl"
             out_dir = Path(td) / "out"
-            input_path.write_text(raw)
+            input_path.write_text(raw) 
 
             original = analyzer.GeminiEvaluator
             analyzer.GeminiEvaluator = FakeEvaluator
@@ -68,8 +86,10 @@ class AnalyzerTests(unittest.TestCase):
             finally:
                 analyzer.GeminiEvaluator = original
 
-            self.assertEqual(report["trend_label"], "improving")
+            self.assertEqual(report["trajectory"]["label"], "improving")
+            self.assertEqual(report["trend_delta_first_to_last"], 2.0)
             self.assertTrue((out_dir / "report.md").exists())
+            self.assertTrue((out_dir / "report.json").exists())
 
 
 if __name__ == "__main__":

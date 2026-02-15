@@ -7,7 +7,7 @@ from pathlib import Path
 from statistics import mean
 
 from .gemini_client import GeminiEvaluator
-from .models import Conversation, ConversationAnalysis, Turn
+from .models import Conversation, Turn
 
 
 def _parse_timestamp(value: str) -> datetime:
@@ -46,13 +46,6 @@ def _basic_metrics(conversation: Conversation) -> dict:
     }
 
 
-def _composite_score(analysis: ConversationAnalysis) -> float:
-    ev = analysis.evaluation
-    return round(
-        (ev.helpfulness + ev.correctness + ev.proactivity + ev.user_satisfaction) / 4, 3
-    )
-
-
 def analyze_conversations(
     input_path: str | Path,
     output_dir: str | Path,
@@ -60,39 +53,40 @@ def analyze_conversations(
 ) -> dict:
     conversations = load_conversations(input_path)
     evaluator = GeminiEvaluator(model=model)
-    analyses: list[ConversationAnalysis] = []
 
+    progression = evaluator.evaluate_progression(conversations)
+    by_id = {item.conversation_id: item for item in progression.per_conversation}
+
+    analyses = []
+    qualities = []
     for convo in conversations:
-        evaluation = evaluator.evaluate(convo)
+        progress = by_id.get(convo.conversation_id)
         analyses.append(
-            ConversationAnalysis(
-                conversation_id=convo.conversation_id,
-                timestamp=convo.timestamp,
-                evaluation=evaluation,
-                basic_metrics=_basic_metrics(convo),
-            )
+            {
+                "conversation_id": convo.conversation_id,
+                "timestamp": convo.timestamp.isoformat(),
+                "basic_metrics": _basic_metrics(convo),
+                "progression": asdict(progress) if progress else None,
+            }
         )
+        if progress:
+            qualities.append(progress.overall_agent_quality)
 
-    scores = [_composite_score(a) for a in analyses]
-    trend = scores[-1] - scores[0] if len(scores) > 1 else 0.0
-    trend_label = "improving" if trend > 0.2 else "declining" if trend < -0.2 else "flat"
+    first_score = qualities[0] if qualities else 0.0
+    last_score = qualities[-1] if qualities else 0.0
+    trend_delta = round(last_score - first_score, 3)
 
     result = {
-        "conversation_count": len(analyses),
-        "scores": scores,
-        "average_score": round(mean(scores), 3) if scores else 0.0,
-        "trend_delta": round(trend, 3),
-        "trend_label": trend_label,
-        "analyses": [
-            {
-                "conversation_id": a.conversation_id,
-                "timestamp": a.timestamp.isoformat(),
-                "evaluation": asdict(a.evaluation),
-                "basic_metrics": a.basic_metrics,
-                "composite_score": _composite_score(a),
-            }
-            for a in analyses
-        ],
+        "conversation_count": len(conversations),
+        "overall_agent_quality_scores": qualities,
+        "average_overall_agent_quality": round(mean(qualities), 3) if qualities else 0.0,
+        "trend_delta_first_to_last": trend_delta,
+        "trajectory": {
+            "label": progression.trajectory_label,
+            "confidence": progression.trajectory_confidence,
+            "summary": progression.overall_summary,
+        },
+        "analyses": analyses,
     }
 
     output_dir = Path(output_dir)
@@ -104,29 +98,43 @@ def analyze_conversations(
 
 def _to_markdown(report: dict) -> str:
     lines = [
-        "# Agent Improvement Report",
+        "# Agent Self-Improvement Report",
         "",
         f"- Conversations analyzed: **{report['conversation_count']}**",
-        f"- Average composite score: **{report['average_score']} / 10**",
-        f"- Trend: **{report['trend_label']}** (delta {report['trend_delta']:+})",
+        (
+            "- Average overall agent quality: "
+            f"**{report['average_overall_agent_quality']} / 10**"
+        ),
+        (
+            "- Trajectory: "
+            f"**{report['trajectory']['label']}** "
+            f"(confidence {report['trajectory']['confidence']})"
+        ),
+        (
+            "- First → Last delta (overall agent quality): "
+            f"**{report['trend_delta_first_to_last']:+}**"
+        ),
+        f"- Summary: {report['trajectory']['summary']}",
         "",
-        "## Conversation Breakdown",
+        "## Conversation Breakdown (ordered)",
         "",
     ]
 
     for item in report["analyses"]:
-        ev = item["evaluation"]
-        lines.extend(
-            [
-                f"### {item['conversation_id']} ({item['timestamp']})",
-                f"- Composite: **{item['composite_score']}**",
-                (
-                    f"- Scores → helpfulness {ev['helpfulness']}, correctness {ev['correctness']}, "
-                    f"proactivity {ev['proactivity']}, user_satisfaction {ev['user_satisfaction']}"
-                ),
-                f"- Confidence: {ev['confidence']}",
-                f"- Notes: {ev['notes']}",
-                "",
-            ]
-        )
+        progress = item["progression"]
+        lines.append(f"### {item['conversation_id']} ({item['timestamp']})")
+        if progress:
+            lines.extend(
+                [
+                    f"- Overall agent quality: **{progress['overall_agent_quality']}**",
+                    f"- Rank within sequence: **{progress['rank']}**",
+                    (
+                        "- Improvement vs previous conversation: "
+                        f"**{progress['improvement_vs_previous']:+}**"
+                    ),
+                    f"- Notes: {progress['notes']}",
+                ]
+            )
+        lines.append("")
+
     return "\n".join(lines)

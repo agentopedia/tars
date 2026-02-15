@@ -1,26 +1,30 @@
 # TARS Conversation Improvement Analyzer
 
-A Python codebase for analyzing transcript sequences between a human and an LLM agent, using **Gemini** to evaluate whether the **same agent is improving over time** from conversation 1 → 2 → 3, etc.
+Analyze whether the **same LLM agent is improving over time** across an ordered sequence of human↔agent conversations using Gemini.
 
-## What this does
+## Overview
 
-- Loads a time-ordered conversation history from JSONL.
-- Sends the **entire ordered sequence** to Gemini for longitudinal evaluation.
-- Asks Gemini to rank each conversation by overall agent quality and score change vs. previous conversation.
-- Produces:
-  - `report.json` (machine-readable)
-  - `report.md` (human-readable)
-- Reports trajectory (`improving`, `flat`, `declining`, `mixed`) and first-to-last quality delta.
+This repo evaluates longitudinal agent quality (conversation 1 → 2 → 3 → ...), not just isolated single-chat quality.
 
-## Project structure
+Given JSONL conversations ordered by timestamp, the analyzer:
+- sends the sequence to Gemini for progression scoring,
+- captures per-conversation quality and rank,
+- computes first-to-last quality delta,
+- labels overall trajectory as `improving`, `flat`, `declining`, or `mixed`,
+- generates both JSON and Markdown reports.
 
-- `src/tars_analyzer/models.py` — data models.
-- `src/tars_analyzer/gemini_client.py` — Gemini API integration and progression evaluation.
-- `src/tars_analyzer/analyzer.py` — loading, trend logic, and report generation.
-- `src/tars_analyzer/cli.py` — CLI entrypoint.
-- `tests/test_analyzer.py` — unit test with mocked progression evaluator.
-- `examples/conversations.jsonl` — sample input.
-- `notebooks/tars_repo_functionality_test.ipynb` — Colab-friendly test flow.
+## Repository contents
+
+- Legacy import compatibility: `from tars_analyzer.conversationprogress import ConversationProgress` is supported.
+- `src/tars_analyzer/models.py` — typed models for conversation structure and progression results.
+- `src/tars_analyzer/gemini_client.py` — Gemini client and sequence-level prompt/evaluation logic.
+- `src/tars_analyzer/analyzer.py` — JSONL loading, metric aggregation, trend/report generation.
+- `src/tars_analyzer/cli.py` — CLI entrypoint (`tars-analyze`).
+- `tests/test_analyzer.py` — deterministic progression unit test using a mocked evaluator.
+- `examples/conversations.jsonl` — minimal sample input.
+- `examples/customer_support_progression.jsonl` — realistic chronological customer-support dataset.
+- `notebooks/tars_repo_functionality_test.ipynb` — quick Colab validation notebook.
+- `notebooks/tars_real_usecase_colab.ipynb` — real-usecase Colab workflow (offline + optional live Gemini).
 
 ## Input format (JSONL)
 
@@ -38,31 +42,53 @@ Each line is one conversation object:
 }
 ```
 
-## Quickstart
+## Installation
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
+pip install --upgrade pip
 pip install -e .
-export GEMINI_API_KEY="your_api_key"
-tars-analyze examples/conversations.jsonl --out output --model gemini-2.0-flash
 ```
 
-After running, check:
+## Run analysis
 
+```bash
+export GEMINI_API_KEY="your_api_key"
+tars-analyze examples/customer_support_progression.jsonl --out output --model gemini-2.0-flash
+```
+
+## Report output
+
+The analyzer writes:
 - `output/report.json`
 - `output/report.md`
 
-## Test
+`report.json` includes:
+- `conversation_count`
+- `overall_agent_quality_scores`
+- `average_overall_agent_quality`
+- `trend_delta_first_to_last`
+- `trajectory` (`label`, `confidence`, `summary`)
+- `analyses` (per conversation, including basic metrics and progression details)
+
+## Testing
 
 ```bash
 python -m unittest discover -s tests
 ```
 
-## Colab notebook
+## Colab notebooks
 
-A ready-to-run Colab notebook for validating repository functionality is available at:
-
+### 1) Repository functionality notebook
 - `notebooks/tars_repo_functionality_test.ipynb`
+- Includes install/setup, unit tests, offline mocked progression run, and optional live Gemini run.
 
-It includes install/setup, unit tests, an offline mocked end-to-end run, and an optional live Gemini run.
+### 2) Real use-case notebook
+- `notebooks/tars_real_usecase_colab.ipynb`
+- Uses `examples/customer_support_progression.jsonl` to test realistic progression behavior.
+- Includes:
+  - dataset inspection,
+  - deterministic offline progression scoring (no API key),
+  - optional live Gemini evaluation,
+  - progression visualization.
