@@ -1,74 +1,93 @@
-# 📄 TARS Loop: Autonomous Research Review & Iteration
+# TARS Conversation Improvement Analyzer
 
-## 🚀 Vision
+Analyze whether the **same LLM agent is improving over time** across an ordered sequence of human↔agent conversations using Gemini.
 
-Accelerate scientific progress by building an AI-powered research improvement loop where agents critique, authors iterate, and every change is tracked with context.  
-Replace static peer review with a dynamic, transparent, and collaborative review ecosystem powered by autonomous agents.
+## Overview
 
----
+This repo evaluates longitudinal agent quality (conversation 1 → 2 → 3 → ...), not just isolated single-chat quality.
 
-## 🧩 The TARS Loop Workflow
+Given JSONL conversations ordered by timestamp, the analyzer:
+- sends the sequence to Gemini for progression scoring,
+- captures per-conversation quality and rank,
+- computes first-to-last quality delta,
+- labels overall trajectory as `improving`, `flat`, `declining`, or `mixed`,
+- generates both JSON and Markdown reports.
 
-### 📄 Submit Draft  
-Upload a paper (PDF or LaTeX) to initiate the TARS critique cycle.
+## Repository contents
 
-### 🤖 TARS Critique  
-Autonomous agents with distinct reviewer personas (theorist, empiricist, philosopher, skeptic...) comment inline and in threaded discussions.
+- `src/tars_analyzer/models.py` — typed models for conversation structure and progression results.
+- `src/tars_analyzer/gemini_client.py` — Gemini client and sequence-level prompt/evaluation logic.
+- `src/tars_analyzer/analyzer.py` — JSONL loading, metric aggregation, trend/report generation.
+- `src/tars_analyzer/cli.py` — CLI entrypoint (`tars-analyze`).
+- `tests/test_analyzer.py` — deterministic progression unit test using a mocked evaluator.
+- `examples/conversations.jsonl` — minimal sample input.
+- `examples/customer_support_progression.jsonl` — realistic chronological customer-support dataset.
+- `notebooks/tars_repo_functionality_test.ipynb` — quick Colab validation notebook.
+- `notebooks/tars_real_usecase_colab.ipynb` — real-usecase Colab workflow (offline + optional live Gemini).
 
-### 🛠️ Author Iteration  
-Authors respond, revise, or reject feedback. Agent suggestions can be semi-automated or integrated with an AI co-author.
+## Input format (JSONL)
 
-### 📈 Changelog Creation  
-Every change is auto-logged, tagged to reviewer feedback, and versioned in a visual timeline.
+Each line is one conversation object:
 
-### 🧪 Final Peer Review  
-Human or agentic peer reviewers conduct a final review, readying the paper for journal submission, arXiv upload, or community publishing.
+```json
+{
+  "conversation_id": "session-001",
+  "timestamp": "2026-01-05T10:00:00Z",
+  "turns": [
+    {"role": "human", "content": "..."},
+    {"role": "agent", "content": "..."}
+  ],
+  "metadata": {"optional": "fields"}
+}
+```
 
----
+## Installation
 
-## 🧠 Why This Matters
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -e .
+```
 
-| Problem | TARS Loop Solves |
-|--------|------------------|
-| Slow, opaque peer review | Transparent, interactive feedback in hours, not months |
-| Lack of constructive critique | Multi-agent diversity ensures multidimensional feedback |
-| No audit trail for evolution | Full changelog links critique → revision → rationale |
-| AI authorship lacks accountability | Traceable agent interventions and authorship attribution |
+## Run analysis
 
----
+```bash
+export GEMINI_API_KEY="your_api_key"
+tars-analyze examples/customer_support_progression.jsonl --out output --model gemini-2.0-flash
+```
 
-## 🔧 Built With
+## Report output
 
-- **LLM-based reviewers**: Fine-tuned or prompt-engineered critique agents (e.g. Formalist, Red Team, Historian)  
-- **Version-aware document platform**: Git-like version control for research papers  
-- **Citation graph integration**: Agents pull related work, detect missing references  
-- **Export-ready formats**: arXiv/Overleaf/LaTeX PDF support  
+The analyzer writes:
+- `output/report.json`
+- `output/report.md`
 
----
+`report.json` includes:
+- `conversation_count`
+- `overall_agent_quality_scores`
+- `average_overall_agent_quality`
+- `trend_delta_first_to_last`
+- `trajectory` (`label`, `confidence`, `summary`)
+- `analyses` (per conversation, including basic metrics and progression details)
 
-## 🎯 Target Users
+## Testing
 
-- Independent researchers, PhD students, and lab groups  
-- Open science communities (arXiv, bioRxiv, OpenReview)  
-- Journals seeking AI-augmented review layers  
-- Tool builders in the academic knowledge graph & GenAI space  
+```bash
+python -m unittest discover -s tests
+```
 
----
+## Colab notebooks
 
-## 🌐 Differentiation
+### 1) Repository functionality notebook
+- `notebooks/tars_repo_functionality_test.ipynb`
+- Includes install/setup, unit tests, offline mocked progression run, and optional live Gemini run.
 
-- 🧠 **Agentic Peer Review**: More than summarization—each agent has a viewpoint and contributes argumentation.  
-- 📊 **Explainable Revisions**: Every edit has a *why*, not just a *what*.  
-- 🔁 **Continuous Publishing**: Move from one-shot publication to a living document with evolving quality.  
-
----
-
-## 💡 Strategic Direction
-
-- Launch as an Overleaf plugin or arXiv-sidecar tool  
-- Open protocol for agent-based research improvement  
-- Integrate with GitHub for papers-as-code (e.g. Manubot, Jupyter)  
-
----
-
-> *“The future of science isn’t just faster—it’s more agentic, auditable, and alive.”*
+### 2) Real use-case notebook
+- `notebooks/tars_real_usecase_colab.ipynb`
+- Uses `examples/customer_support_progression.jsonl` to test realistic progression behavior.
+- Includes:
+  - dataset inspection,
+  - deterministic offline progression scoring (no API key),
+  - optional live Gemini evaluation,
+  - progression visualization.
