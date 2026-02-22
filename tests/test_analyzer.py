@@ -9,7 +9,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from tars_analyzer import analyzer
-from tars_analyzer.models import ConversationProgress, ProgressionEvaluation
+from tars_analyzer.gemini_client import GeminiEvaluator
+from tars_analyzer.models import (
+    ConversationProgress,
+    DimensionScore,
+    ProgressionEvaluation,
+    TurnDimensionEvaluation,
+)
 
 
 class FakeEvaluator:
@@ -20,6 +26,30 @@ class FakeEvaluator:
         ordered = sorted(conversations, key=lambda c: c.timestamp)
         items = []
         for idx, convo in enumerate(ordered):
+            turn_scores = []
+            for turn_idx, turn in enumerate(convo.turns):
+                base = 6.0 + idx
+                dim = DimensionScore(score=base, justification="synthetic", error_flag=None)
+                turn_scores.append(
+                    TurnDimensionEvaluation(
+                        turn_index=turn_idx,
+                        role=turn.role,
+                        content=turn.content,
+                        helpfulness=dim,
+                        factual_accuracy=dim,
+                        instruction_following=dim,
+                        coherence=dim,
+                        depth_of_reasoning=dim,
+                        safety_awareness=dim,
+                        hallucination_likelihood=DimensionScore(
+                            score=max(0.0, 10.0 - base),
+                            justification="synthetic",
+                            error_flag=None,
+                        ),
+                        specificity=dim,
+                    )
+                )
+
             items.append(
                 ConversationProgress(
                     conversation_id=convo.conversation_id,
@@ -27,6 +57,7 @@ class FakeEvaluator:
                     overall_agent_quality=6.0 + idx,
                     improvement_vs_previous=0.0 if idx == 0 else 1.0,
                     notes="synthetic progression",
+                    turn_dimension_scores=turn_scores,
                 )
             )
         return ProgressionEvaluation(
@@ -88,8 +119,14 @@ class AnalyzerTests(unittest.TestCase):
 
             self.assertEqual(report["trajectory"]["label"], "improving")
             self.assertEqual(report["trend_delta_first_to_last"], 2.0)
+            self.assertIn("turn_dimension_scores", report["analyses"][0]["progression"])
             self.assertTrue((out_dir / "report.md").exists())
             self.assertTrue((out_dir / "report.json").exists())
+
+    def test_score_bounds_validation(self):
+        self.assertEqual(GeminiEvaluator._bounded_score(8), 8.0)
+        with self.assertRaises(ValueError):
+            GeminiEvaluator._bounded_score(11)
 
 
 if __name__ == "__main__":

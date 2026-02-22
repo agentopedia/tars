@@ -92,3 +92,20 @@ python -m unittest discover -s tests
   - deterministic offline progression scoring (no API key),
   - optional live Gemini evaluation,
   - progression visualization.
+
+## Multi-dimensional turn scoring
+
+Each turn now includes structured dimension scoring with:
+- `score` (numeric)
+- `justification` (short rationale)
+- `error_flag` (optional)
+
+Dimensions:
+- helpfulness
+- factual_accuracy
+- instruction_following
+- coherence
+- depth_of_reasoning
+- safety_awareness
+- hallucination_likelihood
+- specificity

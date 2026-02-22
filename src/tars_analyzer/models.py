@@ -19,6 +19,28 @@ class Conversation:
 
 
 @dataclass
+class DimensionScore:
+    score: float
+    justification: str
+    error_flag: str | None = None
+
+
+@dataclass
+class TurnDimensionEvaluation:
+    turn_index: int
+    role: str
+    content: str
+    helpfulness: DimensionScore
+    factual_accuracy: DimensionScore
+    instruction_following: DimensionScore
+    coherence: DimensionScore
+    depth_of_reasoning: DimensionScore
+    safety_awareness: DimensionScore
+    hallucination_likelihood: DimensionScore
+    specificity: DimensionScore
+
+
+@dataclass
 class GeminiEvaluation:
     helpfulness: float
     correctness: float
@@ -35,6 +57,7 @@ class ConversationProgress:
     overall_agent_quality: float
     improvement_vs_previous: float
     notes: str
+    turn_dimension_scores: list[TurnDimensionEvaluation] = field(default_factory=list)
 
 
 @dataclass
@@ -56,6 +79,8 @@ class ConversationAnalysis:
 __all__ = [
     "Turn",
     "Conversation",
+    "DimensionScore",
+    "TurnDimensionEvaluation",
     "GeminiEvaluation",
     "ConversationProgress",
     "ProgressionEvaluation",
