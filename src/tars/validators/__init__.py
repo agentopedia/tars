@@ -4,7 +4,6 @@ This namespace hosts validator interfaces and implementations for paper artifact
 (LaTeX, citations, math, structure, reproducibility).
 """
 
-from .base import BaseValidator, ValidatorRegistry
-from .result import ValidationResult
+from .base import ValidationIssue, ValidationResult, Validator
 
-__all__ = ["ValidationResult", "BaseValidator", "ValidatorRegistry"]
+__all__ = ["ValidationIssue", "ValidationResult", "Validator"]
