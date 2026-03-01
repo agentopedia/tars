@@ -28,20 +28,6 @@ class DummyLatexValidator(BaseValidator):
         )
 
 
-class DummyCitationValidator(BaseValidator):
-    name = "citations"
-    artifact_type = "bibliography"
-
-    def validate(self, artifact_path: Path) -> ValidationResult:
-        has_bib = artifact_path.with_suffix(".bib").exists()
-        return ValidationResult(
-            name=self.name,
-            passed=has_bib,
-            errors=[] if has_bib else ["Missing .bib file"],
-            metadata={"artifact_type": self.artifact_type, "path": str(artifact_path)},
-        )
-
-
 class ValidatorNamespaceTests(unittest.TestCase):
     def test_validation_result_json_serializable(self):
         result = ValidationResult(
