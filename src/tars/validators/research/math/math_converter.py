@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any
 
 from tars.validators.base import BaseValidator
 from tars.validators.result import ValidationResult
