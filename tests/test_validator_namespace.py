@@ -7,7 +7,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from tars.validators import BaseValidator, ValidationResult, ValidatorRegistry
+from tars.validators import (
+    BaseValidator,
+    ValidationEngine,
+    ValidationResult,
+    ValidatorRegistry,
+)
 
 
 class DummyLatexValidator(BaseValidator):
@@ -52,6 +57,21 @@ class ValidatorNamespaceTests(unittest.TestCase):
         self.assertTrue(ok.passed)
         self.assertFalse(bad.passed)
         self.assertEqual(bad.errors, ["Expected .tex file"])
+
+    def test_engine_orchestrates_multiple_validators(self):
+        engine = ValidationEngine()
+        engine.register_validators([DummyLatexValidator(), DummyCitationValidator()])
+
+        with self.subTest("all validators run"):
+            results = engine.run(Path("paper.tex"))
+            self.assertEqual(len(results), 2)
+            self.assertEqual({r.name for r in results}, {"latex", "citations"})
+
+        with self.subTest("aggregates"):
+            summary = engine.aggregate(results)
+            self.assertEqual(summary["total"], 2)
+            self.assertEqual(summary["failed"], 1)
+            self.assertFalse(summary["all_passed"])
 
 
 if __name__ == "__main__":
