@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
-
-from .result import ValidationResult
 
 
 @dataclass
@@ -14,6 +12,14 @@ class ValidationIssue:
     path: str | None = None
     line: int | None = None
     severity: str = "error"
+
+
+@dataclass
+class ValidationResult:
+    validator_name: str
+    passed: bool
+    issues: list[ValidationIssue] = field(default_factory=list)
+    metadata: dict = field(default_factory=dict)
 
 
 class Validator(Protocol):
