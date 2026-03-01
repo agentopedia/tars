@@ -1,33 +1,16 @@
 from __future__ import annotations
 
-import re
-from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from tars.validators.base import BaseValidator
 from tars.validators.result import ValidationResult
 
 
-@dataclass
-class ExtractedMathExpression:
-    """Structured LaTeX math expression extracted from a .tex artifact."""
-
-    raw_latex: str
-    line_number: int
-    environment_type: str
-
-
 class MathExtractor(BaseValidator):
-    """Extract LaTeX math expressions from .tex files.
+    """Extract mathematical expressions from research artifacts.
 
-    Supported environment types:
-    - display_brackets: `\\[ ... \\]`
-    - equation: `\\begin{equation} ... \\end{equation}`
-    - align: `\\begin{align} ... \\end{align}`
-    - inline: `$...$`
-
-    Extraction is robust to multiline display/equation/align blocks and records
-    source line numbers for each match.
+    This validator skeleton will eventually identify and normalize equations,
+    inline formulas, and math blocks from a paper input for downstream checks.
     """
 
     name = "math_extractor"
