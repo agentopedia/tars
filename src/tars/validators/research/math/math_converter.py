@@ -51,6 +51,38 @@ def convert_latex_to_sympy(latex_str: str):
         )
 
 
+
+
+@dataclass
+class EquationConversionResult:
+    """Structured conversion response for equation sides."""
+
+    lhs_sympy: Any | None = None
+    rhs_sympy: Any | None = None
+    error: ConversionError | None = None
+
+
+def convert_equation(lhs_latex: str, rhs_latex: str) -> EquationConversionResult:
+    """Convert equation sides (lhs, rhs) from LaTeX to SymPy.
+
+    Returns SymPy expressions in `lhs_sympy` and `rhs_sympy` on success.
+    If either side fails, returns a structured `ConversionError`.
+    """
+    logger.info("Converting equation", extra={"lhs": lhs_latex, "rhs": rhs_latex})
+
+    lhs = convert_latex_to_sympy(lhs_latex)
+    if isinstance(lhs, ConversionError):
+        logger.debug("Failed LHS equation conversion", extra={"lhs": lhs_latex, "error": lhs.message})
+        return EquationConversionResult(error=lhs)
+
+    rhs = convert_latex_to_sympy(rhs_latex)
+    if isinstance(rhs, ConversionError):
+        logger.debug("Failed RHS equation conversion", extra={"rhs": rhs_latex, "error": rhs.message})
+        return EquationConversionResult(error=rhs)
+
+    logger.info("Equation conversion successful")
+    return EquationConversionResult(lhs_sympy=lhs, rhs_sympy=rhs)
+
 def convert_latex_to_sympy_result(latex_str: str) -> ConversionResult:
     """Always-return structured conversion result wrapper."""
     converted = convert_latex_to_sympy(latex_str)
