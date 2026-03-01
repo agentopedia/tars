@@ -1,27 +1,57 @@
 from __future__ import annotations
 
+import json
 import sys
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from tars.validators import ValidationIssue, ValidationResult
+from tars.validators import BaseValidator, ValidationResult, ValidatorRegistry
+
+
+class DummyLatexValidator(BaseValidator):
+    name = "latex"
+    artifact_type = "latex"
+
+    def validate(self, artifact_path: Path) -> ValidationResult:
+        return ValidationResult(
+            name=self.name,
+            passed=artifact_path.suffix == ".tex",
+            errors=[] if artifact_path.suffix == ".tex" else ["Expected .tex file"],
+            metadata={"artifact_type": self.artifact_type, "path": str(artifact_path)},
+        )
 
 
 class ValidatorNamespaceTests(unittest.TestCase):
-    def test_validator_namespace_types(self):
-        issue = ValidationIssue(code="LATEX_001", message="Missing \\begin{document}")
+    def test_validation_result_json_serializable(self):
         result = ValidationResult(
-            validator_name="latex",
+            name="latex",
             passed=False,
-            issues=[issue],
-            metadata={"phase": "mvp"},
+            errors=["Missing \\begin{document}", "Undefined citation: smith2024"],
+            metadata={"phase": "mvp", "artifact": "paper.tex"},
         )
 
-        self.assertEqual(result.validator_name, "latex")
-        self.assertFalse(result.passed)
-        self.assertEqual(result.issues[0].code, "LATEX_001")
+        payload = result.to_dict()
+        encoded = json.dumps(payload)
+
+        self.assertIn('"name": "latex"', encoded)
+        self.assertIn('"passed": false', encoded)
+        self.assertEqual(payload["errors"][0], "Missing \\begin{document}")
+
+    def test_registry_plugin_architecture(self):
+        registry = ValidatorRegistry()
+        validator = DummyLatexValidator()
+        registry.register(validator)
+
+        self.assertEqual(registry.list_names(), ["latex"])
+
+        ok = registry.validate_with("latex", Path("paper.tex"))
+        bad = registry.validate_with("latex", Path("paper.md"))
+
+        self.assertTrue(ok.passed)
+        self.assertFalse(bad.passed)
+        self.assertEqual(bad.errors, ["Expected .tex file"])
 
 
 if __name__ == "__main__":
