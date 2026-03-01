@@ -16,6 +16,7 @@ Given JSONL conversations ordered by timestamp, the analyzer:
 ## Repository contents
 
 - `src/tars/validators/` — dedicated namespace for deterministic research artifact validators (FR-001).
+- `src/tars/validators/result.py` — standardized `ValidationResult` output model (FR-002).
 - Legacy import compatibility: `from tars_analyzer.conversationprogress import ConversationProgress` is supported.
 - `src/tars_analyzer/models.py` — typed models for conversation structure and progression results.
 - `src/tars_analyzer/gemini_client.py` — Gemini client and sequence-level prompt/evaluation logic.
