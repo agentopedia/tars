@@ -89,6 +89,47 @@ class MathValidatorPipelineTests(unittest.TestCase):
         self.assertEqual(0, metrics["failed_equations"])
         self.assertEqual(0, metrics["skipped_equations"])
 
+
+    def test_repeated_equations_use_conversion_cache(self):
+        extraction = ValidationResult(
+            name="math_extractor",
+            passed=True,
+            errors=[],
+            metadata={
+                "equations": [
+                    {
+                        "lhs": "x+1",
+                        "rhs": "1+x",
+                        "raw": "x+1=1+x",
+                        "source_location": "line:1:inline",
+                    },
+                    {
+                        "lhs": "x+1",
+                        "rhs": "1+x",
+                        "raw": "x+1=1+x",
+                        "source_location": "line:2:inline",
+                    },
+                ]
+            },
+        )
+        symbolic_pass = ValidationResult(name="symbolic_validator", passed=True, errors=[], metadata={})
+
+        with patch.object(self.validator.extractor, "validate", return_value=extraction), patch(
+            "tars.validators.research.math.math_validator.convert_equation",
+            return_value=self._fake_conversion_result(),
+        ) as convert_eq, patch.object(
+            self.validator.symbolic_validator,
+            "validate_equivalence",
+            return_value=symbolic_pass,
+        ):
+            result = self.validator.validate(Path("paper.tex"))
+
+        self.assertTrue(result.passed)
+        self.assertEqual(1, convert_eq.call_count)
+        metrics = result.metadata["metrics"]
+        self.assertEqual(2, metrics["total_equations"])
+        self.assertEqual(2, metrics["validated_equations"])
+
     def test_symbolic_inconclusive_falls_back_to_numeric(self):
         symbolic_inconclusive = ValidationResult(
             name="symbolic_validator",

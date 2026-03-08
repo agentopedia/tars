@@ -29,6 +29,8 @@ class MathValidator(BaseValidator):
         self.extractor = MathExtractor()
         self.symbolic_validator = SymbolicValidator()
         self.numeric_validator = NumericValidator()
+        self._latex_cache: dict[str, Any] = {}
+        self._equation_cache: dict[tuple[str, str], Any] = {}
 
     @staticmethod
     def _mark_skipped(eq_result: dict[str, Any], reason: str = "conversion failure") -> None:
@@ -45,6 +47,19 @@ class MathValidator(BaseValidator):
         error_text = " ".join(symbolic_result.errors).lower()
         return "symbolic validation failed" in error_text or "sympy is not available" in error_text
 
+
+    def _convert_latex_cached(self, latex: str) -> Any:
+        key = latex.strip()
+        if key not in self._latex_cache:
+            self._latex_cache[key] = convert_latex_to_sympy(key)
+        return self._latex_cache[key]
+
+    def _convert_equation_cached(self, lhs_latex: str, rhs_latex: str) -> Any:
+        key = (lhs_latex.strip(), rhs_latex.strip())
+        if key not in self._equation_cache:
+            self._equation_cache[key] = convert_equation(key[0], key[1])
+        return self._equation_cache[key]
+
     def _validate_derivative_equation(self, equation: dict[str, Any], eq_result: dict[str, Any]) -> bool:
         lhs_latex = equation["lhs"].strip()
         match = self._DERIVATIVE_PATTERN.match(lhs_latex)
@@ -55,14 +70,14 @@ class MathValidator(BaseValidator):
         variable_name, target_expr_latex = match.group(1), match.group(2).strip()
         rhs_latex = equation["rhs"].strip()
 
-        target_expr = convert_latex_to_sympy(target_expr_latex)
+        target_expr = self._convert_latex_cached(target_expr_latex)
         if hasattr(target_expr, "error_type"):
             eq_result["decision_path"].append("derivative_conversion_failed")
             self._mark_skipped(eq_result, "conversion failure")
             eq_result["errors"].append(f"Derivative conversion failed for target expression: {target_expr.message}")
             return True
 
-        rhs_expr = convert_latex_to_sympy(rhs_latex)
+        rhs_expr = self._convert_latex_cached(rhs_latex)
         if hasattr(rhs_expr, "error_type"):
             eq_result["decision_path"].append("derivative_conversion_failed")
             self._mark_skipped(eq_result, "conversion failure")
@@ -103,14 +118,14 @@ class MathValidator(BaseValidator):
         integrand_latex, variable_name = match.group(1).strip(), match.group(2)
         rhs_latex = equation["rhs"].strip()
 
-        integrand_expr = convert_latex_to_sympy(integrand_latex)
+        integrand_expr = self._convert_latex_cached(integrand_latex)
         if hasattr(integrand_expr, "error_type"):
             eq_result["decision_path"].append("integral_conversion_failed")
             self._mark_skipped(eq_result, "conversion failure")
             eq_result["errors"].append(f"Integral conversion failed for integrand: {integrand_expr.message}")
             return True
 
-        rhs_expr = convert_latex_to_sympy(rhs_latex)
+        rhs_expr = self._convert_latex_cached(rhs_latex)
         if hasattr(rhs_expr, "error_type"):
             eq_result["decision_path"].append("integral_conversion_failed")
             self._mark_skipped(eq_result, "conversion failure")
@@ -159,7 +174,7 @@ class MathValidator(BaseValidator):
             if self._validate_integral_equation(equation, eq_result):
                 return eq_result
 
-            conversion = convert_equation(equation["lhs"], equation["rhs"])
+            conversion = self._convert_equation_cached(equation["lhs"], equation["rhs"])
             if conversion.error is not None:
                 eq_result["decision_path"].append("conversion_failed")
                 self._mark_skipped(eq_result, "conversion failure")
@@ -208,6 +223,11 @@ class MathValidator(BaseValidator):
             return eq_result
 
     def validate(self, artifact_path: Path) -> ValidationResult:
+        # Per-run caches reduce repeated LaTeX→SymPy conversions when validating
+        # large papers (100+ equations) with duplicated forms.
+        self._latex_cache = {}
+        self._equation_cache = {}
+
         extraction = self.extractor.validate(artifact_path)
         if not extraction.passed:
             return ValidationResult(
@@ -256,6 +276,10 @@ class MathValidator(BaseValidator):
                     "validated_equations": validated_equations,
                     "failed_equations": failed_equations,
                     "skipped_equations": skipped_equations,
+                },
+                "cache_stats": {
+                    "latex_cache_size": len(self._latex_cache),
+                    "equation_cache_size": len(self._equation_cache),
                 },
             },
         )
