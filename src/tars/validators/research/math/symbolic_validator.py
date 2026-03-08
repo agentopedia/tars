@@ -10,7 +10,9 @@ from tars.validators.result import ValidationResult
 class SymbolicValidator(BaseValidator):
     """Symbolically validate equation equivalence with SymPy.
 
-    Core check is based on `sympy.simplify(lhs - rhs)` and zero detection.
+    Core check is based on simplifying ``lhs - rhs`` and testing whether the
+    resulting expression is mathematically zero. Matrix/scalar expressions are
+    both supported.
     """
 
     name = "symbolic_validator"
@@ -29,7 +31,29 @@ class SymbolicValidator(BaseValidator):
             zeros = sp_module.zeros(*expr.shape)
             return bool(expr.equals(zeros))
 
+        is_zero_matrix = getattr(expr, "is_ZeroMatrix", None)
+        if is_zero_matrix is True:
+            return True
+
+        equals = getattr(expr, "equals", None)
+        if callable(equals):
+            try:
+                return bool(expr.equals(0))
+            except Exception:
+                return False
+
         return False
+
+    @staticmethod
+    def _simplify_difference(lhs_sympy: Any, rhs_sympy: Any, sp_module: Any) -> Any:
+        """Return a simplified expression for ``lhs - rhs`` across scalar/matrix types."""
+        diff = lhs_sympy - rhs_sympy
+        simplified = sp_module.simplify(diff)
+
+        if isinstance(simplified, sp_module.MatrixBase):
+            return simplified.applyfunc(sp_module.simplify)
+
+        return simplified
 
     def validate_equivalence(self, lhs_sympy: Any, rhs_sympy: Any) -> ValidationResult:
         """Validate whether lhs and rhs are mathematically equivalent."""
@@ -44,7 +68,7 @@ class SymbolicValidator(BaseValidator):
             )
 
         try:
-            diff = sp.simplify(lhs_sympy - rhs_sympy)
+            diff = self._simplify_difference(lhs_sympy, rhs_sympy, sp)
             passed = self._is_zero_expr(diff, sp)
             return ValidationResult(
                 name=self.name,

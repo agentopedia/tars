@@ -70,6 +70,30 @@ class SymbolicValidatorTests(unittest.TestCase):
         result = self.validator.validate_equivalence(lhs, rhs)
         self.assertFalse(result.passed)
 
+
+    def test_matrix_multiplication_passes(self):
+        a = self.sp.Matrix([[1, 2], [0, 1]])
+        b = self.sp.Matrix([[2, 0], [3, 4]])
+        lhs = a * b
+        rhs = self.sp.Matrix([[8, 8], [3, 4]])
+        result = self.validator.validate_equivalence(lhs, rhs)
+        self.assertTrue(result.passed)
+
+    def test_determinant_identity_passes(self):
+        a = self.sp.Matrix([[1, 2], [3, 4]])
+        b = self.sp.Matrix([[2, 1], [0, 5]])
+        lhs = (a * b).det()
+        rhs = a.det() * b.det()
+        result = self.validator.validate_equivalence(lhs, rhs)
+        self.assertTrue(result.passed)
+
+    def test_inverse_identity_passes(self):
+        a = self.sp.Matrix([[4, 7], [2, 6]])
+        lhs = a * a.inv()
+        rhs = self.sp.eye(2)
+        result = self.validator.validate_equivalence(lhs, rhs)
+        self.assertTrue(result.passed)
+
     def test_matrix_expressions(self):
         a = self.sp.Matrix([[1, 2], [3, 4]])
         b = self.sp.Matrix([[2, 1], [0, 5]])
