@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import sys
 import unittest
 from pathlib import Path
@@ -9,6 +10,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from tars.validators.research.math.math_validator import MathValidator
 from tars.validators.result import ValidationResult
+
+
+HAS_SYMPY = importlib.util.find_spec("sympy") is not None
 
 
 class MathValidatorPipelineTests(unittest.TestCase):
@@ -156,6 +160,66 @@ class MathValidatorPipelineTests(unittest.TestCase):
             ["symbolic_attempt", "symbolic_inconclusive", "numeric_attempt", "numeric_fail"],
             decision_path,
         )
+
+
+@unittest.skipUnless(HAS_SYMPY, "sympy not installed")
+class MathValidatorDerivativeTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.validator = MathValidator()
+        import sympy as sp
+
+        self.sp = sp
+
+    def _derivative_extraction_result(self, rhs: str) -> ValidationResult:
+        return ValidationResult(
+            name="math_extractor",
+            passed=True,
+            errors=[],
+            metadata={
+                "equations": [
+                    {
+                        "lhs": r"\frac{d}{dx} x^2",
+                        "rhs": rhs,
+                        "raw": rf"\frac{{d}}{{dx}} x^2 = {rhs}",
+                        "source_location": "line:2:equation",
+                    }
+                ]
+            },
+        )
+
+    def test_derivative_equation_passes(self):
+        with patch.object(
+            self.validator.extractor,
+            "validate",
+            return_value=self._derivative_extraction_result("2*x"),
+        ), patch(
+            "tars.validators.research.math.math_validator.convert_latex_to_sympy",
+            side_effect=lambda latex: self.sp.sympify(latex),
+        ), patch.object(
+            self.validator,
+            "_symbolic_inconclusive",
+            return_value=False,
+        ):
+            result = self.validator.validate(Path("paper.tex"))
+
+        self.assertTrue(result.passed)
+        decision_path = result.metadata["results"][0]["decision_path"]
+        self.assertEqual(["derivative_detected", "derivative_diff_computed", "derivative_pass"], decision_path)
+
+    def test_derivative_equation_fails_when_rhs_incorrect(self):
+        with patch.object(
+            self.validator.extractor,
+            "validate",
+            return_value=self._derivative_extraction_result("3*x"),
+        ), patch(
+            "tars.validators.research.math.math_validator.convert_latex_to_sympy",
+            side_effect=lambda latex: self.sp.sympify(latex),
+        ):
+            result = self.validator.validate(Path("paper.tex"))
+
+        self.assertFalse(result.passed)
+        decision_path = result.metadata["results"][0]["decision_path"]
+        self.assertEqual(["derivative_detected", "derivative_diff_computed", "derivative_fail"], decision_path)
 
 
 if __name__ == "__main__":
