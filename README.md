@@ -13,40 +13,7 @@ Given JSONL conversations ordered by timestamp, the analyzer:
 - labels overall trajectory as `improving`, `flat`, `declining`, or `mixed`,
 - generates both JSON and Markdown reports.
 
-## Repository contents
-
-- `src/tars/validators/` — dedicated namespace for deterministic research artifact validators (FR-001).
-- `src/tars/validators/result.py` — standardized `ValidationResult` output model (FR-002).
-- `src/tars/validators/base.py` — plugin-oriented validator base interface and registry (FR-003).
-- `src/tars/validators/engine.py` — validator orchestration engine to register/run/aggregate (FR-004).
-- Legacy import compatibility: `from tars_analyzer.conversationprogress import ConversationProgress` is supported.
-- `src/tars_analyzer/models.py` — typed models for conversation structure and progression results.
-- `src/tars_analyzer/gemini_client.py` — Gemini client and sequence-level prompt/evaluation logic.
-- `src/tars_analyzer/analyzer.py` — JSONL loading, metric aggregation, trend/report generation.
-- `src/tars_analyzer/cli.py` — CLI entrypoint (`tars-analyze`).
-- `tests/test_analyzer.py` — deterministic progression unit test using a mocked evaluator.
-- `examples/conversations.jsonl` — minimal sample input.
-- `examples/customer_support_progression.jsonl` — realistic chronological customer-support dataset.
-- `notebooks/tars_repo_functionality_test.ipynb` — quick Colab validation notebook.
-- `notebooks/tars_real_usecase_colab.ipynb` — real-usecase Colab workflow (offline + optional live Gemini).
-
-## Input format (JSONL)
-
-Each line is one conversation object:
-
-```json
-{
-  "conversation_id": "session-001",
-  "timestamp": "2026-01-05T10:00:00Z",
-  "turns": [
-    {"role": "human", "content": "..."},
-    {"role": "agent", "content": "..."}
-  ],
-  "metadata": {"optional": "fields"}
-}
-```
-
-## Installation
+## Quickstart
 
 ```bash
 python -m venv .venv
@@ -55,76 +22,35 @@ pip install --upgrade pip
 pip install -e .
 ```
 
-## Run analysis
+### Run conversation analysis
 
 ```bash
 export GEMINI_API_KEY="your_api_key"
 tars-analyze examples/customer_support_progression.jsonl --out output --model gemini-2.0-flash
 ```
 
-## Report output
+### Run arXiv validator UI
 
-The analyzer writes:
-- `output/report.json`
-- `output/report.md`
+```bash
+tars-ui
+```
 
-`report.json` includes:
-- `conversation_count`
-- `overall_agent_quality_scores`
-- `average_overall_agent_quality`
-- `trend_delta_first_to_last`
-- `trajectory` (`label`, `confidence`, `summary`)
-- `analyses` (per conversation, including basic metrics and progression details)
+Open `http://localhost:8000` and provide an arXiv URL/ID.
 
-## Testing
+## Core modules
+
+- `src/tars_analyzer/` — conversation progression analyzer package.
+- `src/tars/validators/` — deterministic validator framework + research/math validators.
+- `src/tars_ui/` — local web UI and arXiv download helpers.
+
+## Verification and testing
+
+Detailed verification flows (including **CLI verification with arXiv URL**) are in:
+
+- `VERIFICATION.md`
+
+For quick test run:
 
 ```bash
 python -m unittest discover -s tests
 ```
-
-## Colab notebooks
-
-### 1) Repository functionality notebook
-- `notebooks/tars_repo_functionality_test.ipynb`
-- Includes install/setup, unit tests, offline mocked progression run, and optional live Gemini run.
-
-### 2) Real use-case notebook
-- `notebooks/tars_real_usecase_colab.ipynb`
-- Uses `examples/customer_support_progression.jsonl` to test realistic progression behavior.
-- Includes:
-  - dataset inspection,
-  - deterministic offline progression scoring (no API key),
-  - optional live Gemini evaluation,
-  - progression visualization.
-
-## Multi-dimensional turn scoring
-
-Each turn now includes structured dimension scoring with:
-- `score` (numeric)
-- `justification` (short rationale)
-- `error_flag` (optional)
-
-Dimensions:
-- helpfulness
-- factual_accuracy
-- instruction_following
-- coherence
-- depth_of_reasoning
-- safety_awareness
-- hallucination_likelihood
-- specificity
-
-## Web UI for arXiv paper validation
-
-You can run a local UI that accepts an arXiv URL/ID and executes the existing math validators (`MathExtractor`, `MathConverter`) on the downloaded source:
-
-```bash
-pip install -e .
-tars-ui
-```
-
-Then open:
-
-- `http://localhost:8000`
-
-The UI downloads arXiv source (`/e-print/<id>`), picks the largest `.tex` file as the main file, and displays structured JSON results from extraction and conversion.
