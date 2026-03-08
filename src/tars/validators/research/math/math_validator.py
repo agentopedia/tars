@@ -223,15 +223,22 @@ class MathValidator(BaseValidator):
         details = [self._validate_one_equation(eq) for eq in equations]
 
         errors: list[str] = []
-        skipped_count = 0
+        total_equations = len(equations)
+        skipped_equations = 0
+        failed_equations = 0
+
         for item in details:
             if item.get("status") == "SKIPPED":
-                skipped_count += 1
+                skipped_equations += 1
                 continue
+
             if not item["passed"]:
+                failed_equations += 1
                 errors.extend([f"{item['source_location']}: {err}" for err in item.get("errors", [])])
 
-        status = "FAIL" if errors else ("SKIPPED" if skipped_count else "PASS")
+        validated_equations = total_equations - skipped_equations
+
+        status = "FAIL" if errors else ("SKIPPED" if skipped_equations else "PASS")
         reason = "conversion failure" if status == "SKIPPED" else None
 
         return ValidationResult(
@@ -243,7 +250,12 @@ class MathValidator(BaseValidator):
             metadata={
                 "artifact_path": str(artifact_path),
                 "equation_count": len(equations),
-                "skipped_count": skipped_count,
                 "results": details,
+                "metrics": {
+                    "total_equations": total_equations,
+                    "validated_equations": validated_equations,
+                    "failed_equations": failed_equations,
+                    "skipped_equations": skipped_equations,
+                },
             },
         )

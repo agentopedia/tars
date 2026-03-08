@@ -68,6 +68,26 @@ class MathValidatorPipelineTests(unittest.TestCase):
         decision_path = result.metadata["results"][0]["decision_path"]
         self.assertEqual(["symbolic_attempt", "symbolic_pass"], decision_path)
 
+
+    def test_metrics_reported_for_pass_case(self):
+        symbolic_pass = ValidationResult(name="symbolic_validator", passed=True, errors=[], metadata={})
+
+        with patch.object(self.validator.extractor, "validate", return_value=self._fake_extraction_result()), patch(
+            "tars.validators.research.math.math_validator.convert_equation",
+            return_value=self._fake_conversion_result(),
+        ), patch.object(
+            self.validator.symbolic_validator,
+            "validate_equivalence",
+            return_value=symbolic_pass,
+        ):
+            result = self.validator.validate(Path("paper.tex"))
+
+        metrics = result.metadata["metrics"]
+        self.assertEqual(1, metrics["total_equations"])
+        self.assertEqual(1, metrics["validated_equations"])
+        self.assertEqual(0, metrics["failed_equations"])
+        self.assertEqual(0, metrics["skipped_equations"])
+
     def test_symbolic_inconclusive_falls_back_to_numeric(self):
         symbolic_inconclusive = ValidationResult(
             name="symbolic_validator",
@@ -120,6 +140,26 @@ class MathValidatorPipelineTests(unittest.TestCase):
         self.assertEqual("SKIPPED", eq["status"])
         self.assertEqual("conversion failure", eq["reason"])
 
+
+    def test_metrics_reported_for_skipped_case(self):
+        class _Err:
+            message = "cannot parse"
+
+        class _Conversion:
+            error = _Err()
+
+        with patch.object(self.validator.extractor, "validate", return_value=self._fake_extraction_result()), patch(
+            "tars.validators.research.math.math_validator.convert_equation",
+            return_value=_Conversion(),
+        ):
+            result = self.validator.validate(Path("paper.tex"))
+
+        metrics = result.metadata["metrics"]
+        self.assertEqual(1, metrics["total_equations"])
+        self.assertEqual(0, metrics["validated_equations"])
+        self.assertEqual(0, metrics["failed_equations"])
+        self.assertEqual(1, metrics["skipped_equations"])
+
     def test_symbolic_definitive_fail_does_not_run_numeric(self):
         symbolic_fail = ValidationResult(
             name="symbolic_validator",
@@ -145,6 +185,31 @@ class MathValidatorPipelineTests(unittest.TestCase):
         self.assertFalse(numeric_call.called)
         decision_path = result.metadata["results"][0]["decision_path"]
         self.assertEqual(["symbolic_attempt", "symbolic_fail"], decision_path)
+
+
+    def test_metrics_reported_for_failed_case(self):
+        symbolic_fail = ValidationResult(
+            name="symbolic_validator",
+            passed=False,
+            errors=["Expressions are not mathematically equivalent"],
+            metadata={},
+        )
+
+        with patch.object(self.validator.extractor, "validate", return_value=self._fake_extraction_result()), patch(
+            "tars.validators.research.math.math_validator.convert_equation",
+            return_value=self._fake_conversion_result(),
+        ), patch.object(
+            self.validator.symbolic_validator,
+            "validate_equivalence",
+            return_value=symbolic_fail,
+        ):
+            result = self.validator.validate(Path("paper.tex"))
+
+        metrics = result.metadata["metrics"]
+        self.assertEqual(1, metrics["total_equations"])
+        self.assertEqual(1, metrics["validated_equations"])
+        self.assertEqual(1, metrics["failed_equations"])
+        self.assertEqual(0, metrics["skipped_equations"])
 
     def test_numeric_fail_propagates(self):
         symbolic_inconclusive = ValidationResult(
