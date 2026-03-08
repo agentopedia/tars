@@ -24,6 +24,7 @@ class MathValidator(BaseValidator):
     artifact_type = "research-paper"
 
     _DERIVATIVE_PATTERN = re.compile(r"\\frac\s*\{d\}\s*\{d\s*([A-Za-z])\}\s*(.+)$", re.DOTALL)
+    _INTEGRAL_PATTERN = re.compile(r"\\int\s+(.+?)\s*(?:\\,\s*)?d\s*([A-Za-z])\s*$", re.DOTALL)
 
     def __init__(self) -> None:
         self.extractor = MathExtractor()
@@ -92,6 +93,56 @@ class MathValidator(BaseValidator):
         eq_result["errors"].extend(symbolic.errors)
         return True
 
+    def _validate_integral_equation(self, equation: dict[str, Any], eq_result: dict[str, Any]) -> bool:
+        """Detect and validate equations of form ``\int f(x) dx = F(x)``."""
+        lhs_latex = equation["lhs"].strip()
+        match = self._INTEGRAL_PATTERN.match(lhs_latex)
+        if not match:
+            return False
+
+        eq_result["decision_path"].append("integral_detected")
+        logger.info("math_validator decision path: integral_detected", extra={"source": equation["source_location"]})
+
+        integrand_latex, variable_name = match.group(1).strip(), match.group(2)
+        rhs_latex = equation["rhs"].strip()
+
+        integrand_expr = convert_latex_to_sympy(integrand_latex)
+        if hasattr(integrand_expr, "error_type"):
+            eq_result["decision_path"].append("integral_conversion_failed")
+            eq_result["errors"].append(f"Integral conversion failed for integrand: {integrand_expr.message}")
+            return True
+
+        rhs_expr = convert_latex_to_sympy(rhs_latex)
+        if hasattr(rhs_expr, "error_type"):
+            eq_result["decision_path"].append("integral_conversion_failed")
+            eq_result["errors"].append(f"Integral conversion failed for rhs expression: {rhs_expr.message}")
+            return True
+
+        try:
+            import sympy as sp  # type: ignore
+        except Exception as exc:
+            eq_result["decision_path"].append("integral_sympy_unavailable")
+            eq_result["errors"].append(f"SymPy is not available: {exc}")
+            return True
+
+        integrated_expr = sp.integrate(integrand_expr, sp.Symbol(variable_name))
+        eq_result["decision_path"].append("integral_computed")
+        logger.info("math_validator decision path: integral_computed", extra={"source": equation["source_location"]})
+
+        symbolic = self.symbolic_validator.validate_equivalence(integrated_expr, rhs_expr)
+        eq_result["symbolic"] = symbolic.to_dict()
+
+        if symbolic.passed:
+            eq_result["decision_path"].append("integral_pass")
+            logger.info("math_validator decision path: integral_pass", extra={"source": equation["source_location"]})
+            eq_result["passed"] = True
+            return True
+
+        eq_result["decision_path"].append("integral_fail")
+        logger.info("math_validator decision path: integral_fail", extra={"source": equation["source_location"]})
+        eq_result["errors"].extend(symbolic.errors)
+        return True
+
     def _validate_one_equation(self, equation: dict[str, Any]) -> dict[str, Any]:
         eq_result: dict[str, Any] = {
             "source_location": equation["source_location"],
@@ -102,6 +153,9 @@ class MathValidator(BaseValidator):
         }
 
         if self._validate_derivative_equation(equation, eq_result):
+            return eq_result
+
+        if self._validate_integral_equation(equation, eq_result):
             return eq_result
 
         conversion = convert_equation(equation["lhs"], equation["rhs"])

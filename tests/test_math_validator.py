@@ -222,5 +222,61 @@ class MathValidatorDerivativeTests(unittest.TestCase):
         self.assertEqual(["derivative_detected", "derivative_diff_computed", "derivative_fail"], decision_path)
 
 
+@unittest.skipUnless(HAS_SYMPY, "sympy not installed")
+class MathValidatorIntegralTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.validator = MathValidator()
+        import sympy as sp
+
+        self.sp = sp
+
+    def _integral_extraction_result(self, rhs: str) -> ValidationResult:
+        return ValidationResult(
+            name="math_extractor",
+            passed=True,
+            errors=[],
+            metadata={
+                "equations": [
+                    {
+                        "lhs": r"\int x^2 dx",
+                        "rhs": rhs,
+                        "raw": rf"\int x^2 dx = {rhs}",
+                        "source_location": "line:3:equation",
+                    }
+                ]
+            },
+        )
+
+    def test_integral_equation_passes(self):
+        with patch.object(
+            self.validator.extractor,
+            "validate",
+            return_value=self._integral_extraction_result("x**3/3"),
+        ), patch(
+            "tars.validators.research.math.math_validator.convert_latex_to_sympy",
+            side_effect=lambda latex: self.sp.sympify(latex.replace("^", "**")),
+        ):
+            result = self.validator.validate(Path("paper.tex"))
+
+        self.assertTrue(result.passed)
+        decision_path = result.metadata["results"][0]["decision_path"]
+        self.assertEqual(["integral_detected", "integral_computed", "integral_pass"], decision_path)
+
+    def test_integral_equation_fails_when_rhs_incorrect(self):
+        with patch.object(
+            self.validator.extractor,
+            "validate",
+            return_value=self._integral_extraction_result("x**2/2"),
+        ), patch(
+            "tars.validators.research.math.math_validator.convert_latex_to_sympy",
+            side_effect=lambda latex: self.sp.sympify(latex.replace("^", "**")),
+        ):
+            result = self.validator.validate(Path("paper.tex"))
+
+        self.assertFalse(result.passed)
+        decision_path = result.metadata["results"][0]["decision_path"]
+        self.assertEqual(["integral_detected", "integral_computed", "integral_fail"], decision_path)
+
+
 if __name__ == "__main__":
     unittest.main()
