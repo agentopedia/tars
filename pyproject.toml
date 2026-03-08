@@ -12,6 +12,7 @@ dependencies = [
   "google-genai>=0.5.0",
   "sympy>=1.12",
   "latex2sympy2>=1.9.1",
+  "pint>=0.24",
 ]
 
 [project.scripts]
