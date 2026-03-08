@@ -12,6 +12,7 @@ from tars.validators.research.math.math_converter import (
     convert_equation,
     convert_latex_to_sympy,
     convert_latex_to_sympy_result,
+    normalize_latex_for_sympy,
 )
 
 
@@ -33,11 +34,11 @@ class MathConverterConversionTests(unittest.TestCase):
         self.assertFalse(isinstance(expr, ConversionError))
 
     def test_integral_conversion(self):
-        expr = convert_latex_to_sympy(r"\\int_0^1 x^2 \\; dx")
+        expr = convert_latex_to_sympy(r"\\int_0^1 x^2 \\; d x")
         self.assertFalse(isinstance(expr, ConversionError))
 
     def test_derivative_conversion(self):
-        expr = convert_latex_to_sympy(r"\\frac{d}{dx}x^2")
+        expr = convert_latex_to_sympy(r"\\frac{\\partial u}{\\partial x}")
         self.assertFalse(isinstance(expr, ConversionError))
 
     def test_convert_equation_success(self):
@@ -61,6 +62,30 @@ class MathConverterFailureTests(unittest.TestCase):
         self.assertIsInstance(result.error, ConversionError)
         self.assertIsNone(result.lhs_sympy)
         self.assertIsNone(result.rhs_sympy)
+
+
+class MathConverterNormalizationTests(unittest.TestCase):
+    def test_strip_metadata_tags(self):
+        latex = r"x + y \\label{eq:1} \\nonumber \\cite{abc}"
+        out = normalize_latex_for_sympy(latex)
+        self.assertNotIn(r"\\label", out)
+        self.assertNotIn(r"\\nonumber", out)
+        self.assertNotIn(r"\\cite", out)
+
+    def test_simplify_mbox(self):
+        out = normalize_latex_for_sympy(r"\\mbox{CFL} + 1")
+        self.assertIn("CFL", out)
+        self.assertNotIn(r"\\mbox", out)
+
+    def test_standardize_differentials(self):
+        out = normalize_latex_for_sympy(r"\\int_0^1 f(x) \\mathrm{d} x")
+        self.assertIn("dx", out)
+        self.assertNotIn(r"\\mathrm{d}", out)
+
+    def test_prime_notation_rewrite(self):
+        out = normalize_latex_for_sympy(r"f' + g''")
+        self.assertIn("f_prime", out)
+        self.assertIn("g_prime2", out)
 
 
 if __name__ == "__main__":

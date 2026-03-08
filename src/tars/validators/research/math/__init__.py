@@ -1,6 +1,6 @@
 """Math validator module namespace for research artifact validation."""
 
-from .math_converter import MathConverter, convert_equation, convert_latex_to_sympy
+from .math_converter import MathConverter, convert_equation, convert_latex_to_sympy, normalize_latex_for_sympy
 from .math_extractor import MathExtractor
 from .math_validator import MathValidator
 from .numeric_validator import NumericValidator
@@ -11,6 +11,7 @@ __all__ = [
     "MathConverter",
     "convert_latex_to_sympy",
     "convert_equation",
+    "normalize_latex_for_sympy",
     "SymbolicValidator",
     "NumericValidator",
     "MathValidator",
