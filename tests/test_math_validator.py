@@ -99,6 +99,27 @@ class MathValidatorPipelineTests(unittest.TestCase):
             decision_path,
         )
 
+
+    def test_conversion_failure_is_skipped(self):
+        class _Err:
+            message = "cannot parse"
+
+        class _Conversion:
+            error = _Err()
+
+        with patch.object(self.validator.extractor, "validate", return_value=self._fake_extraction_result()), patch(
+            "tars.validators.research.math.math_validator.convert_equation",
+            return_value=_Conversion(),
+        ):
+            result = self.validator.validate(Path("paper.tex"))
+
+        self.assertTrue(result.passed)
+        self.assertEqual("SKIPPED", result.status)
+        self.assertEqual("conversion failure", result.reason)
+        eq = result.metadata["results"][0]
+        self.assertEqual("SKIPPED", eq["status"])
+        self.assertEqual("conversion failure", eq["reason"])
+
     def test_symbolic_definitive_fail_does_not_run_numeric(self):
         symbolic_fail = ValidationResult(
             name="symbolic_validator",
