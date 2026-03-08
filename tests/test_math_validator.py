@@ -13,6 +13,7 @@ from tars.validators.result import ValidationResult
 
 
 HAS_SYMPY = importlib.util.find_spec("sympy") is not None
+HAS_LATEX2SYMPY2 = importlib.util.find_spec("latex2sympy2") is not None
 
 
 class MathValidatorPipelineTests(unittest.TestCase):
@@ -362,6 +363,21 @@ class MathValidatorIntegralTests(unittest.TestCase):
         self.assertFalse(result.passed)
         decision_path = result.metadata["results"][0]["decision_path"]
         self.assertEqual(["integral_detected", "integral_computed", "integral_fail"], decision_path)
+
+
+@unittest.skipUnless(HAS_SYMPY and HAS_LATEX2SYMPY2, "sympy/latex2sympy2 not installed")
+class MathValidatorExampleFilesTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.validator = MathValidator()
+        self.repo_root = Path(__file__).resolve().parents[1]
+
+    def test_invalid_example_detects_failures(self):
+        invalid_paper = self.repo_root / "examples" / "research" / "math_invalid.tex"
+        result = self.validator.validate(invalid_paper)
+
+        self.assertFalse(result.passed)
+        metrics = result.metadata.get("metrics", {})
+        self.assertGreater(metrics.get("failed_equations", 0), 0)
 
 
 if __name__ == "__main__":
