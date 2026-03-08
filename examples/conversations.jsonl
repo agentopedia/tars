@@ -1,0 +1,2 @@
+{"conversation_id":"session-001","timestamp":"2026-01-05T10:00:00Z","turns":[{"role":"human","content":"I need a 3-day Tokyo itinerary under $800."},{"role":"agent","content":"Absolutely—here's a day-by-day budget itinerary with transit passes and food estimates."}]}
+{"conversation_id":"session-002","timestamp":"2026-01-12T10:00:00Z","turns":[{"role":"human","content":"That budget ignored hotel taxes. Can you fix it?"},{"role":"agent","content":"Great catch. I recalculated with taxes, gave two hotel tiers, and highlighted tradeoffs."}]}
