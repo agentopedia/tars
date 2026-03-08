@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from tars.validators.research.math.math_converter import (
     ConversionError,
+    convert_equation,
     convert_latex_to_sympy,
     convert_latex_to_sympy_result,
 )
@@ -39,6 +40,12 @@ class MathConverterConversionTests(unittest.TestCase):
         expr = convert_latex_to_sympy(r"\\frac{d}{dx}x^2")
         self.assertFalse(isinstance(expr, ConversionError))
 
+    def test_convert_equation_success(self):
+        result = convert_equation(r"x^2", r"y+1")
+        self.assertIsNone(result.error)
+        self.assertIsNotNone(result.lhs_sympy)
+        self.assertIsNotNone(result.rhs_sympy)
+
 
 class MathConverterFailureTests(unittest.TestCase):
     def test_conversion_failure_returns_structured_error(self):
@@ -47,6 +54,13 @@ class MathConverterFailureTests(unittest.TestCase):
         self.assertIsNotNone(result.error)
         self.assertIsInstance(result.error, ConversionError)
         self.assertEqual(result.error.latex, r"\\thisisnotvalid{")
+
+    def test_convert_equation_failure_returns_structured_error(self):
+        result = convert_equation(r"\\thisisnotvalid{", r"x")
+        self.assertIsNotNone(result.error)
+        self.assertIsInstance(result.error, ConversionError)
+        self.assertIsNone(result.lhs_sympy)
+        self.assertIsNone(result.rhs_sympy)
 
 
 if __name__ == "__main__":

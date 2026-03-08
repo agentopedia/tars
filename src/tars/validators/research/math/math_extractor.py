@@ -1,16 +1,43 @@
 from __future__ import annotations
 
+import re
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from tars.validators.base import BaseValidator
 from tars.validators.result import ValidationResult
 
 
-class MathExtractor(BaseValidator):
-    """Extract mathematical expressions from research artifacts.
+@dataclass
+class ExtractedMathExpression:
+    """Structured LaTeX math expression extracted from a .tex artifact."""
 
-    This validator skeleton will eventually identify and normalize equations,
-    inline formulas, and math blocks from a paper input for downstream checks.
+    raw_latex: str
+    line_number: int
+    environment_type: str
+
+
+@dataclass
+class Equation:
+    """Normalized equation split into left/right sides when '=' is present."""
+
+    raw: str
+    lhs: str
+    rhs: str
+    source_location: str
+
+
+class MathExtractor(BaseValidator):
+    """Extract and normalize LaTeX math expressions from .tex files.
+
+    Supported environment types:
+    - display_brackets: `\\[ ... \\]`
+    - equation: `\\begin{equation} ... \\end{equation}`
+    - align: `\\begin{align} ... \\end{align}`
+    - inline: `$...$`
+
+    Extraction is robust to multiline display/equation/align blocks and records
+    source line numbers for each match.
     """
 
     name = "math_extractor"
@@ -61,12 +88,10 @@ class MathExtractor(BaseValidator):
                 i += 1
                 continue
 
-            # Skip escaped dollar
             if i > 0 and text[i - 1] == "\\":
                 i += 1
                 continue
 
-            # Skip $$ blocks (not requested for this FR)
             if i + 1 < n and text[i + 1] == "$":
                 i += 2
                 continue
@@ -92,6 +117,49 @@ class MathExtractor(BaseValidator):
 
         return expressions
 
+    @staticmethod
+    def _strip_delimiters(raw_latex: str, environment_type: str) -> str:
+        text = raw_latex.strip()
+        if environment_type == "inline" and text.startswith("$") and text.endswith("$"):
+            return text[1:-1].strip()
+        if environment_type == "display_brackets":
+            text = re.sub(r"^\\\[", "", text)
+            text = re.sub(r"\\\]$", "", text)
+            return text.strip()
+        if environment_type == "equation":
+            text = re.sub(r"^\\begin\{equation\}", "", text)
+            text = re.sub(r"\\end\{equation\}$", "", text)
+            return text.strip()
+        if environment_type == "align":
+            text = re.sub(r"^\\begin\{align\}", "", text)
+            text = re.sub(r"\\end\{align\}$", "", text)
+            return text.strip()
+        return text
+
+    def _normalize_equations(self, expressions: list[ExtractedMathExpression]) -> list[Equation]:
+        equations: list[Equation] = []
+        for expr in expressions:
+            body = self._strip_delimiters(expr.raw_latex, expr.environment_type)
+
+            parts = [body]
+            if expr.environment_type == "align":
+                parts = [p.strip() for p in re.split(r"\\\\\s*", body) if p.strip()]
+
+            for part in parts:
+                clean = part.replace("&", "").strip()
+                if "=" not in clean:
+                    continue
+                lhs, rhs = clean.split("=", 1)
+                equations.append(
+                    Equation(
+                        raw=part.strip(),
+                        lhs=lhs.strip(),
+                        rhs=rhs.strip(),
+                        source_location=f"line:{expr.line_number}:{expr.environment_type}",
+                    )
+                )
+        return equations
+
     def extract(self, artifact_path: Path) -> list[ExtractedMathExpression]:
         text = artifact_path.read_text()
         block_expressions, consumed_spans = self._extract_blocks(text)
@@ -101,7 +169,7 @@ class MathExtractor(BaseValidator):
         return expressions
 
     def validate(self, artifact_path: Path) -> ValidationResult:
-        """Extract all supported math expressions and return standardized output."""
+        """Extract math expressions and normalized equations from a .tex artifact."""
         path = Path(artifact_path)
         errors: list[str] = []
 
@@ -110,13 +178,15 @@ class MathExtractor(BaseValidator):
                 name=self.name,
                 passed=False,
                 errors=[f"Artifact not found: {path}"],
-                metadata={"artifact_path": str(path), "expressions": []},
+                metadata={"artifact_path": str(path), "expressions": [], "equations": []},
             )
 
         if path.suffix.lower() != ".tex":
             errors.append("Expected a .tex file")
 
         expressions = self.extract(path)
+        equations = self._normalize_equations(expressions)
+
         return ValidationResult(
             name=self.name,
             passed=not errors,
@@ -125,5 +195,7 @@ class MathExtractor(BaseValidator):
                 "artifact_path": str(path),
                 "expression_count": len(expressions),
                 "expressions": [asdict(expr) for expr in expressions],
+                "equation_count": len(equations),
+                "equations": [asdict(eq) for eq in equations],
             },
         )

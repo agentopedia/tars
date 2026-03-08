@@ -113,3 +113,18 @@ Dimensions:
 - safety_awareness
 - hallucination_likelihood
 - specificity
+
+## Web UI for arXiv paper validation
+
+You can run a local UI that accepts an arXiv URL/ID and executes the existing math validators (`MathExtractor`, `MathConverter`) on the downloaded source:
+
+```bash
+pip install -e .
+tars-ui
+```
+
+Then open:
+
+- `http://localhost:8000`
+
+The UI downloads arXiv source (`/e-print/<id>`), picks the largest `.tex` file as the main file, and displays structured JSON results from extraction and conversion.

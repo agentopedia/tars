@@ -14,6 +14,7 @@ dependencies = [
 
 [project.scripts]
 tars-analyze = "tars_analyzer.cli:main"
+tars-ui = "tars_ui.app:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

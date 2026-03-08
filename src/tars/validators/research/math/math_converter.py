@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+from dataclasses import asdict, dataclass
+import logging
 from pathlib import Path
+from typing import Any
 
 from tars.validators.base import BaseValidator
 from tars.validators.result import ValidationResult
 
 from .math_extractor import MathExtractor
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -32,9 +38,11 @@ def convert_latex_to_sympy(latex_str: str):
 
     Returns either a SymPy expression on success, or a `ConversionError` on failure.
     """
+    logger.debug("Converting LaTeX to SymPy", extra={"latex": latex_str})
     try:
         from latex2sympy2 import latex2sympy  # type: ignore
     except Exception as exc:  # dependency missing or broken install
+        logger.debug("latex2sympy2 unavailable", exc_info=exc)
         return ConversionError(
             latex=latex_str,
             error_type=type(exc).__name__,
@@ -44,6 +52,7 @@ def convert_latex_to_sympy(latex_str: str):
     try:
         return latex2sympy(latex_str)
     except Exception as exc:
+        logger.debug("LaTeX conversion failed", extra={"latex": latex_str, "error": str(exc)})
         return ConversionError(
             latex=latex_str,
             error_type=type(exc).__name__,
@@ -118,40 +127,21 @@ class MathConverter(BaseValidator):
         conversions: list[dict] = []
         errors: list[str] = []
         for equation in extraction.metadata.get("equations", []):
-            lhs_result = convert_latex_to_sympy_result(equation["lhs"])
-            rhs_result = convert_latex_to_sympy_result(equation["rhs"])
+            eq_result = convert_equation(equation["lhs"], equation["rhs"])
 
-            if not lhs_result.success and lhs_result.error:
+            if eq_result.error:
                 errors.append(
-                    f"LHS conversion failed at {equation['source_location']}: "
-                    f"{lhs_result.error.message}"
-                )
-            if not rhs_result.success and rhs_result.error:
-                errors.append(
-                    f"RHS conversion failed at {equation['source_location']}: "
-                    f"{rhs_result.error.message}"
+                    f"Equation conversion failed at {equation['source_location']}: "
+                    f"{eq_result.error.message}"
                 )
 
             conversions.append(
                 {
                     "source_location": equation["source_location"],
                     "raw": equation["raw"],
-                    "lhs": asdict(lhs_result)
-                    if not lhs_result.success
-                    else {
-                        "latex": lhs_result.latex,
-                        "success": True,
-                        "sympy_expr": str(lhs_result.sympy_expr),
-                        "error": None,
-                    },
-                    "rhs": asdict(rhs_result)
-                    if not rhs_result.success
-                    else {
-                        "latex": rhs_result.latex,
-                        "success": True,
-                        "sympy_expr": str(rhs_result.sympy_expr),
-                        "error": None,
-                    },
+                    "lhs_sympy": None if eq_result.error else str(eq_result.lhs_sympy),
+                    "rhs_sympy": None if eq_result.error else str(eq_result.rhs_sympy),
+                    "error": asdict(eq_result.error) if eq_result.error else None,
                 }
             )
 
