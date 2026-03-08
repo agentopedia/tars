@@ -1,74 +1,56 @@
-# 📄 TARS Loop: Autonomous Research Review & Iteration
+# TARS Conversation Improvement Analyzer
 
-## 🚀 Vision
+Analyze whether the **same LLM agent is improving over time** across an ordered sequence of human↔agent conversations using Gemini.
 
-Accelerate scientific progress by building an AI-powered research improvement loop where agents critique, authors iterate, and every change is tracked with context.  
-Replace static peer review with a dynamic, transparent, and collaborative review ecosystem powered by autonomous agents.
+## Overview
 
----
+This repo evaluates longitudinal agent quality (conversation 1 → 2 → 3 → ...), not just isolated single-chat quality.
 
-## 🧩 The TARS Loop Workflow
+Given JSONL conversations ordered by timestamp, the analyzer:
+- sends the sequence to Gemini for progression scoring,
+- captures per-conversation quality and rank,
+- computes first-to-last quality delta,
+- labels overall trajectory as `improving`, `flat`, `declining`, or `mixed`,
+- generates both JSON and Markdown reports.
 
-### 📄 Submit Draft  
-Upload a paper (PDF or LaTeX) to initiate the TARS critique cycle.
+## Quickstart
 
-### 🤖 TARS Critique  
-Autonomous agents with distinct reviewer personas (theorist, empiricist, philosopher, skeptic...) comment inline and in threaded discussions.
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -e .
+```
 
-### 🛠️ Author Iteration  
-Authors respond, revise, or reject feedback. Agent suggestions can be semi-automated or integrated with an AI co-author.
+### Run conversation analysis
 
-### 📈 Changelog Creation  
-Every change is auto-logged, tagged to reviewer feedback, and versioned in a visual timeline.
+```bash
+export GEMINI_API_KEY="your_api_key"
+tars-analyze examples/customer_support_progression.jsonl --out output --model gemini-2.0-flash
+```
 
-### 🧪 Final Peer Review  
-Human or agentic peer reviewers conduct a final review, readying the paper for journal submission, arXiv upload, or community publishing.
+### Run arXiv validator UI
 
----
+```bash
+tars-ui
+```
 
-## 🧠 Why This Matters
+Open `http://localhost:8000` and provide an arXiv URL/ID.
 
-| Problem | TARS Loop Solves |
-|--------|------------------|
-| Slow, opaque peer review | Transparent, interactive feedback in hours, not months |
-| Lack of constructive critique | Multi-agent diversity ensures multidimensional feedback |
-| No audit trail for evolution | Full changelog links critique → revision → rationale |
-| AI authorship lacks accountability | Traceable agent interventions and authorship attribution |
+## Core modules
 
----
+- `src/tars_analyzer/` — conversation progression analyzer package.
+- `src/tars/validators/` — deterministic validator framework + research/math validators.
+- `src/tars_ui/` — local web UI and arXiv download helpers.
 
-## 🔧 Built With
+## Verification and testing
 
-- **LLM-based reviewers**: Fine-tuned or prompt-engineered critique agents (e.g. Formalist, Red Team, Historian)  
-- **Version-aware document platform**: Git-like version control for research papers  
-- **Citation graph integration**: Agents pull related work, detect missing references  
-- **Export-ready formats**: arXiv/Overleaf/LaTeX PDF support  
+Detailed verification flows (including **CLI verification with arXiv URL**) are in:
 
----
+- `VERIFICATION.md`
 
-## 🎯 Target Users
+For quick test run:
 
-- Independent researchers, PhD students, and lab groups  
-- Open science communities (arXiv, bioRxiv, OpenReview)  
-- Journals seeking AI-augmented review layers  
-- Tool builders in the academic knowledge graph & GenAI space  
-
----
-
-## 🌐 Differentiation
-
-- 🧠 **Agentic Peer Review**: More than summarization—each agent has a viewpoint and contributes argumentation.  
-- 📊 **Explainable Revisions**: Every edit has a *why*, not just a *what*.  
-- 🔁 **Continuous Publishing**: Move from one-shot publication to a living document with evolving quality.  
-
----
-
-## 💡 Strategic Direction
-
-- Launch as an Overleaf plugin or arXiv-sidecar tool  
-- Open protocol for agent-based research improvement  
-- Integrate with GitHub for papers-as-code (e.g. Manubot, Jupyter)  
-
----
-
-> *“The future of science isn’t just faster—it’s more agentic, auditable, and alive.”*
+```bash
+python -m unittest discover -s tests
+```
