@@ -28,6 +28,13 @@ class SymbolicValidatorTests(unittest.TestCase):
         result = self.validator.validate_equivalence(lhs, rhs)
         self.assertTrue(result.passed)
 
+    def test_polynomial_equivalence_passes(self):
+        x = self.sp.Symbol("x")
+        lhs = x**2 - 1
+        rhs = (x - 1) * (x + 1)
+        result = self.validator.validate_equivalence(lhs, rhs)
+        self.assertTrue(result.passed)
+
     def test_incorrect_algebra_fails(self):
         x = self.sp.Symbol("x")
         lhs = (x + 1) ** 2
@@ -39,6 +46,27 @@ class SymbolicValidatorTests(unittest.TestCase):
         x = self.sp.Symbol("x")
         lhs = self.sp.sin(x) ** 2 + self.sp.cos(x) ** 2
         rhs = self.sp.Integer(0)
+        result = self.validator.validate_equivalence(lhs, rhs)
+        self.assertFalse(result.passed)
+
+    def test_trigonometric_identity_passes(self):
+        x = self.sp.Symbol("x")
+        lhs = self.sp.sin(x) ** 2 + self.sp.cos(x) ** 2
+        rhs = self.sp.Integer(1)
+        result = self.validator.validate_equivalence(lhs, rhs)
+        self.assertTrue(result.passed)
+
+    def test_exponential_identity_passes(self):
+        x = self.sp.Symbol("x")
+        lhs = self.sp.exp(x)
+        rhs = 1 / self.sp.exp(-x)
+        result = self.validator.validate_equivalence(lhs, rhs)
+        self.assertTrue(result.passed)
+
+    def test_incorrect_log_identity_fails(self):
+        a, b = self.sp.symbols("a b", positive=True)
+        lhs = self.sp.log(a + b)
+        rhs = self.sp.log(a) + self.sp.log(b)
         result = self.validator.validate_equivalence(lhs, rhs)
         self.assertFalse(result.passed)
 
