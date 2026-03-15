@@ -7,7 +7,7 @@ TARS is a Python toolkit for two workflows:
 
 It includes CLIs, a lightweight local UI for arXiv sources, examples, and a full unit test suite.
 
----
+This repo evaluates longitudinal agent quality (conversation 1 → 2 → 3 → ...), not just isolated single-chat quality.
 
 ## Features
 
@@ -53,7 +53,9 @@ Research math validators:
   - `examples/research/` (valid + invalid research-style equations)
 - Notebooks in `notebooks/` for offline and optional live Gemini runs.
 
----
+- `src/tars_analyzer/` — conversation progression analyzer package.
+- `src/tars/validators/` — deterministic validator framework + research/math validators.
+- `src/tars_ui/` — local web UI and arXiv download helpers.
 
 ## Installation
 
@@ -71,7 +73,7 @@ Dependencies include:
 - `latex2sympy2`
 - `pint`
 
----
+- `VERIFICATION.md`
 
 ## Quickstart
 
