@@ -9,7 +9,8 @@ TARS is a Python toolkit for two core workflows:
 
 It includes CLIs, a lightweight local UI for arXiv sources, example artifacts, and a full unit test suite. ✅
 
----
+1. 🤖 **Conversation progression analysis** for ordered human↔agent conversations.
+2. 📄 **Deterministic research-math validation** for LaTeX papers.
 
 ## ✨ Features
 
@@ -55,7 +56,13 @@ Research math validators:
   - `examples/research/` (✅ valid + ❌ invalid research-style equations)
 - 📓 Notebooks in `notebooks/` for offline and optional live Gemini runs
 
----
+- 🔎 `MathExtractor` — extract display/inline equations from `.tex`
+- 🔄 `MathConverter` — normalize LaTeX and convert to SymPy (`latex2sympy2`)
+- 🧠 `SymbolicValidator` — symbolic equivalence checks
+- 🎯 `NumericValidator` — numeric fallback checks via randomized substitution
+- 🧭 `MathValidator` — orchestrates extraction → conversion → symbolic → numeric fallback with metrics
+- 📏 `DimensionalValidator` — Pint-based dimensional consistency checks
+- 🧪 `LeanExportValidator` — exports equations as Lean theorem skeletons (`.lean`) for future formal proof workflows
 
 ## 🛠️ Installation
 
@@ -73,7 +80,37 @@ Dependencies include:
 - `latex2sympy2`
 - `pint`
 
----
+### 4) 📚 Examples + notebooks
+
+- 💬 Conversation datasets in `examples/*.jsonl`
+- 🧾 LaTeX samples in:
+  - `examples/latex/`
+  - `examples/research/` (✅ valid + ❌ invalid research-style equations)
+- 📓 Notebooks in `notebooks/` for offline and optional live Gemini runs
+
+- `src/tars_analyzer/` — conversation progression analyzer package.
+- `src/tars/validators/` — deterministic validator framework + research/math validators.
+- `src/tars_ui/` — local web UI and arXiv download helpers.
+
+## 🛠️ Installation
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -e .
+```
+
+Dependencies include:
+
+- `google-genai`
+- `sympy`
+- `latex2sympy2`
+- `pint`
+
+- `VERIFICATION.md`
+
+## ⚡ Quickstart
 
 ## ⚡ Quickstart
 
