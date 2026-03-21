@@ -4,16 +4,21 @@ import importlib.util
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from tars.validators.research.math.math_converter import (
     ConversionError,
+    EquationConversionResult,
+    MathConverter,
+    build_conversion_failure_insight,
     convert_equation,
     convert_latex_to_sympy,
     convert_latex_to_sympy_result,
     normalize_latex_for_sympy,
 )
+from tars.validators.result import ValidationResult
 
 
 HAS_LATEX2SYMPY2 = importlib.util.find_spec("latex2sympy2") is not None
@@ -22,7 +27,7 @@ HAS_LATEX2SYMPY2 = importlib.util.find_spec("latex2sympy2") is not None
 @unittest.skipUnless(HAS_LATEX2SYMPY2, "latex2sympy2 not installed")
 class MathConverterConversionTests(unittest.TestCase):
     def test_fraction_conversion(self):
-        expr = convert_latex_to_sympy(r"\\frac{1}{2}")
+        expr = convert_latex_to_sympy(r"\frac{1}{2}")
         self.assertFalse(isinstance(expr, ConversionError))
 
     def test_power_conversion(self):
@@ -30,15 +35,15 @@ class MathConverterConversionTests(unittest.TestCase):
         self.assertFalse(isinstance(expr, ConversionError))
 
     def test_trigonometric_conversion(self):
-        expr = convert_latex_to_sympy(r"\\sin(x)")
+        expr = convert_latex_to_sympy(r"\sin(x)")
         self.assertFalse(isinstance(expr, ConversionError))
 
     def test_integral_conversion(self):
-        expr = convert_latex_to_sympy(r"\\int_0^1 x^2 \\; d x")
+        expr = convert_latex_to_sympy(r"\int x dx")
         self.assertFalse(isinstance(expr, ConversionError))
 
     def test_derivative_conversion(self):
-        expr = convert_latex_to_sympy(r"\\frac{\\partial u}{\\partial x}")
+        expr = convert_latex_to_sympy(r"\frac{\partial u}{\partial x}")
         self.assertFalse(isinstance(expr, ConversionError))
 
     def test_convert_equation_success(self):
@@ -62,6 +67,55 @@ class MathConverterFailureTests(unittest.TestCase):
         self.assertIsInstance(result.error, ConversionError)
         self.assertIsNone(result.lhs_sympy)
         self.assertIsNone(result.rhs_sympy)
+
+    def test_failure_insight_contains_actionable_guidance(self):
+        insight = build_conversion_failure_insight(
+            latex=r"\\text{CFL} = x",
+            error_type="ParseError",
+            message="no viable alternative",
+            source_location="line:10:equation",
+        )
+        self.assertEqual("CRITICAL", insight["severity"])
+        self.assertTrue(insight["suggested_fixes"])
+        self.assertIn("sympy_friendly_alternative", insight)
+        self.assertIn("docs.sympy.org", insight["docs_link"])
+
+    def test_validate_includes_convertibility_and_failure_insights(self):
+        converter = MathConverter()
+        extraction = ValidationResult(
+            name="math_extractor",
+            passed=True,
+            errors=[],
+            metadata={
+                "equations": [
+                    {"lhs": "x+1", "rhs": "1+x", "raw": "x+1=1+x", "source_location": "line:1:inline"},
+                    {
+                        "lhs": r"\\text{bad}",
+                        "rhs": "x",
+                        "raw": r"\\text{bad}=x",
+                        "source_location": "line:2:equation",
+                    },
+                ]
+            },
+        )
+
+        with patch.object(converter.extractor, "validate", return_value=extraction), patch(
+            "tars.validators.research.math.math_converter.convert_equation",
+            side_effect=[
+                EquationConversionResult(lhs_sympy="a", rhs_sympy="b", error=None),
+                EquationConversionResult(
+                    error=ConversionError(latex=r"\\text{bad}=x", error_type="ParseError", message="bad token")
+                ),
+            ],
+        ):
+            result = converter.validate(Path("paper.tex"))
+
+        convertibility = result.metadata["convertibility"]
+        self.assertEqual(2, convertibility["total_equations"])
+        self.assertEqual(1, convertibility["convertible_equations"])
+        self.assertEqual(1, convertibility["failed_equations"])
+        self.assertEqual(5.0, convertibility["score_out_of_10"])
+        self.assertIsNotNone(result.metadata["conversions"][1]["failure_insight"])
 
 
 class MathConverterNormalizationTests(unittest.TestCase):
