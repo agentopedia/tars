@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from tars.summarizers import MathValidationSummarizer
 from tars.validators.research.math.math_validator import MathValidator
 
 
@@ -26,6 +27,10 @@ def _cmd_validate_math(args: argparse.Namespace) -> int:
         f"failed_equations={failed} "
         f"skipped_equations={skipped}"
     )
+
+    summarizer = MathValidationSummarizer()
+    findings = summarizer.summarize(result)
+    print(f"Findings: {findings}")
 
     if result.errors:
         print("Errors:")
