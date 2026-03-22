@@ -78,7 +78,10 @@ class AnalyzerTests(unittest.TestCase):
                         "timestamp": "2025-01-01T00:00:00Z",
                         "turns": [
                             {"role": "human", "content": "help"},
-                            {"role": "agent", "content": "basic reply"},
+                            {
+                                "role": "agent",
+                                "content": "Always verify assumptions with concrete tests before finalizing an answer.",
+                            },
                         ],
                     }
                 ),
@@ -88,7 +91,10 @@ class AnalyzerTests(unittest.TestCase):
                         "timestamp": "2025-01-02T00:00:00Z",
                         "turns": [
                             {"role": "human", "content": "help"},
-                            {"role": "agent", "content": "better response"},
+                            {
+                                "role": "agent",
+                                "content": "Always verify assumptions with concrete tests before finalizing an answer. Then summarize next steps.",
+                            },
                         ],
                     }
                 ),
@@ -98,7 +104,10 @@ class AnalyzerTests(unittest.TestCase):
                         "timestamp": "2025-01-03T00:00:00Z",
                         "turns": [
                             {"role": "human", "content": "help"},
-                            {"role": "agent", "content": "best response"},
+                            {
+                                "role": "agent",
+                                "content": "Document the rationale and list concrete next steps for implementation.",
+                            },
                         ],
                     }
                 ),
@@ -119,9 +128,40 @@ class AnalyzerTests(unittest.TestCase):
 
             self.assertEqual(report["trajectory"]["label"], "improving")
             self.assertEqual(report["trend_delta_first_to_last"], 2.0)
+            self.assertIn("knowledge_retention_proxy", report)
+            self.assertEqual(report["knowledge_retention_proxy"]["total_repeated_claims"], 1)
             self.assertIn("turn_dimension_scores", report["analyses"][0]["progression"])
+            self.assertIn("claim_deduplication", report["analyses"][1])
+            self.assertEqual(report["analyses"][1]["claim_deduplication"]["repeated_claims"], 1)
             self.assertTrue((out_dir / "report.md").exists())
             self.assertTrue((out_dir / "report.json").exists())
+
+    def test_claim_dedup_no_agent_turns(self):
+        raw = json.dumps(
+            {
+                "conversation_id": "conv-0",
+                "timestamp": "2025-01-01T00:00:00Z",
+                "turns": [{"role": "human", "content": "Just user text"}],
+            }
+        )
+
+        with tempfile.TemporaryDirectory() as td:
+            input_path = Path(td) / "conversations.jsonl"
+            out_dir = Path(td) / "out"
+            input_path.write_text(raw)
+
+            original = analyzer.GeminiEvaluator
+            analyzer.GeminiEvaluator = FakeEvaluator
+            try:
+                report = analyzer.analyze_conversations(input_path, out_dir)
+            finally:
+                analyzer.GeminiEvaluator = original
+
+            self.assertEqual(report["knowledge_retention_proxy"]["average_repetition_ratio"], 0.0)
+            self.assertEqual(
+                report["analyses"][0]["claim_deduplication"]["total_claims"],
+                0,
+            )
 
     def test_score_bounds_validation(self):
         self.assertEqual(GeminiEvaluator._bounded_score(8), 8.0)

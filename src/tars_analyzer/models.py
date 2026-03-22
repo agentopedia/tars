@@ -76,6 +76,23 @@ class ConversationAnalysis:
     basic_metrics: dict
 
 
+@dataclass
+class DedupedClaim:
+    claim: str
+    matched_previous_claim: str
+    similarity: float
+
+
+@dataclass
+class ConversationClaimDedup:
+    conversation_id: str
+    total_claims: int
+    repeated_claims: int
+    novel_claims: int
+    repetition_ratio: float
+    repeated_items: list[DedupedClaim] = field(default_factory=list)
+
+
 __all__ = [
     "Turn",
     "Conversation",
@@ -85,4 +102,6 @@ __all__ = [
     "ConversationProgress",
     "ProgressionEvaluation",
     "ConversationAnalysis",
+    "DedupedClaim",
+    "ConversationClaimDedup",
 ]

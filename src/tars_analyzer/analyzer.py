@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from statistics import mean
 
+from .claim_deduplication import analyze_claim_deduplication
 from .gemini_client import GeminiEvaluator
 from .models import Conversation, Turn
 
@@ -55,6 +56,8 @@ def analyze_conversations(
     evaluator = GeminiEvaluator(model=model)
 
     progression = evaluator.evaluate_progression(conversations)
+    claim_dedup = analyze_claim_deduplication(conversations)
+    claim_dedup_by_id = {item.conversation_id: item for item in claim_dedup}
     by_id = {item.conversation_id: item for item in progression.per_conversation}
 
     analyses = []
@@ -67,6 +70,11 @@ def analyze_conversations(
                 "timestamp": convo.timestamp.isoformat(),
                 "basic_metrics": _basic_metrics(convo),
                 "progression": asdict(progress) if progress else None,
+                "claim_deduplication": (
+                    asdict(claim_dedup_by_id[convo.conversation_id])
+                    if convo.conversation_id in claim_dedup_by_id
+                    else None
+                ),
             }
         )
         if progress:
@@ -81,6 +89,15 @@ def analyze_conversations(
         "overall_agent_quality_scores": qualities,
         "average_overall_agent_quality": round(mean(qualities), 3) if qualities else 0.0,
         "trend_delta_first_to_last": trend_delta,
+        "knowledge_retention_proxy": {
+            "average_repetition_ratio": round(
+                mean([item.repetition_ratio for item in claim_dedup]), 3
+            )
+            if claim_dedup
+            else 0.0,
+            "total_repeated_claims": sum(item.repeated_claims for item in claim_dedup),
+            "total_novel_claims": sum(item.novel_claims for item in claim_dedup),
+        },
         "trajectory": {
             "label": progression.trajectory_label,
             "confidence": progression.trajectory_confidence,
@@ -114,6 +131,10 @@ def _to_markdown(report: dict) -> str:
             "- First → Last delta (overall agent quality): "
             f"**{report['trend_delta_first_to_last']:+}**"
         ),
+        (
+            "- Knowledge retention proxy (avg repetition ratio): "
+            f"**{report['knowledge_retention_proxy']['average_repetition_ratio']}**"
+        ),
         f"- Summary: {report['trajectory']['summary']}",
         "",
         "## Conversation Breakdown (ordered)",
@@ -133,6 +154,17 @@ def _to_markdown(report: dict) -> str:
                         f"**{progress['improvement_vs_previous']:+}**"
                     ),
                     f"- Notes: {progress['notes']}",
+                ]
+            )
+        dedup = item.get("claim_deduplication")
+        if dedup:
+            lines.extend(
+                [
+                    (
+                        "- Claim deduplication: "
+                        f"{dedup['repeated_claims']} repeated / {dedup['total_claims']} "
+                        f"(ratio {dedup['repetition_ratio']})"
+                    )
                 ]
             )
         lines.append("")
